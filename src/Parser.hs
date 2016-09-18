@@ -2,11 +2,13 @@ module Parser
        where
 
 import           Lang
-import           Text.Parsec.Prim       ( Parsec )
+import           Text.Parsec.Prim       ( Parsec
+                                        , try
+                                        )
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
 import           Control.Applicative
-
+import qualified Data.List              as List
 
 type Parser a = Parsec String () a
 
@@ -14,10 +16,19 @@ nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
 
 escapeChar = '\\' -- not in spec
 
+escapableChars = "\""
+
 escaped :: [Char] -> Parser Char
 escaped escapableChars = do
   char escapeChar
   oneOf escapableChars
+
+escape :: String -> String
+escape = List.foldr (\c s -> if List.elem c escapableChars
+                             then escapeChar : c : s
+                             else c : s
+                    )
+         ""
 
 comment :: Parser GoodNoise
 comment =
@@ -25,99 +36,163 @@ comment =
 
 whitespace :: Parser GoodNoise
 whitespace =
-  Whitespace <$> many space
+  Whitespace <$> many1 space
+
+goodNoise :: Parser GoodNoise
+goodNoise =
+  choice [ comment
+         , whitespace
+         ]
+
+noise :: Parser Noise
+noise =
+  Noise <$> many goodNoise
+
+expr :: Parser Expr
+expr =
+  --Expr <$> ((\e -> [e]) <$> singleExpr) `chainl1` (char '+' *> return (++))
+  Expr <$> sepBy1 singleExpr (char '+')
+
+{-
+singleExprOrNoise :: Parser (Either GoodNoise SingleExpr)
+singleExprOrNoise =
+  choice [ Left  <$> goodNoise
+         , Right <$> singleExpr
+         ]
+-}
+
+singleExpr :: Parser SingleExpr
+singleExpr = do
+  n <- noise
+  b <- exprBase
+  s <- many selectorOrNoise
+  return $ SingleExpr n b s
 
 exprBase :: Parser ExprBase
 exprBase =
   choice [ stringLiteral
          , BlockExpr <$> block
          , Reference <$> nameWithLevel
-         , ChildExpr <$> between (char '(') (char ')') expr
+         , childExpr
          ]
-
-singleExpr :: Parser SingleExpr
-singleExpr = do
-  SingleExpr <$> exprBase <*> many selector
-
-selector :: Parser Selector
-selector =
-  Selector <$> (char '.' *> name)
-
-expr :: Parser Expr
-expr =
-  ((\e -> [e]) <$> singleExpr) `chainl1` (char '+' *> return (++))
-
-  {-
-  choice [ Expr <$> singleExpr
-         , concatExpr
-         ]
-
-sepBy2 p sep = do
-  first <- p
-  sep
-  rest <- sepBy1 p sep
-  return $ first : rest
-
-concatExpr :: Parser Expr
-concatExpr =
-  ConcatExpr <$> ((\e -> [e]) <$> expr) `chainl1` (char '+' *> return (++))
--}
 
 stringLiteral :: Parser ExprBase
 stringLiteral =
   let
-    string = many $ choice [ escaped  "\""
-                           , noneOf "\""
+    string = many $ choice [ escaped escapableChars
+                           , noneOf escapableChars
                            ]
   in
-    do
-      StringLiteral <$> between (char '"') (char '"') string
+   StringLiteral <$> between (char '"') (char '"') string
+
+childExpr :: Parser ExprBase
+childExpr = do
+  char '('
+  preNoise <- noise
+  e <- expr
+  postNoise <- noise
+  char ')'
+  return $ ChildExpr preNoise e postNoise
+
+selectorOrNoise :: Parser (Either GoodNoise Selector)
+selectorOrNoise =
+  choice [ Left  <$> goodNoise
+         , Right <$> selector
+         ]
+
+selector :: Parser Selector
+selector = do
+  char '.'
+  n <- noise
+  s <- name
+  return $ Selector n s
 
 block :: Parser Block
 block =
-  Block <$> between (char '{') (char '}') (many command)
+  between (char '{') (char '}') nakedBlock
+
+nakedBlock :: Parser Block
+nakedBlock =
+  Block <$> many commandOrNoise
+
+program :: Parser Program
+program = do
+  preNoise <- noise
+  b <- block
+  postNoise <- noise
+  return $ Program preNoise b postNoise
+
+commandOrNoise :: Parser (Either GoodNoise Command)
+commandOrNoise =
+  choice [ Left  <$> goodNoise
+         , Right <$> command
+         ]
 
 command :: Parser Command
 command =
   choice [ guarded
          , assignment
+         , simpleCommand
          , return'
          ]
 
 guarded :: Parser Command
 guarded = do
   char '['
+  preNoise <- noise
   g <- guard
+  postNoise <- noise
   char ':'
-  cs <- many command
+  cs <- many commandOrNoise
   char ']'
-  return $ Guarded g cs
+  return $ Guarded preNoise g postNoise cs
+
+simpleCommand :: Parser Command
+simpleCommand =
+  SimpleCommand <$> expr <*> noise <* char ';'
 
 assignment :: Parser Command
 assignment = do
-  constructor <- option SimpleCommand (Assignment <$> (nameWithLevel <* char '='))
-  let constructor = SimpleCommand
+  n <- nameWithLevel
+  postNameNoise <- noise
+  char '='
+  preExprNoise <- noise
   e <- expr
+  postExprNoise <- noise
   char ';'
-  return $ constructor e
+  return $ Assignment n postNameNoise preExprNoise e postExprNoise
 
-nameWithLevel :: Parser (Name, Int)
+nameWithLevel :: Parser NameWithLevel
 nameWithLevel = do
   as <- many $ char '*'
+  postAsteriskNoise <- noise
   n <- name
-  return $ (Name n, length as)
+  return $ NameWithLevel (Name n) postAsteriskNoise (length as)
 
 name :: Parser String
 name =
   many1 $ oneOf nameChars
 
 return' :: Parser Command
-return' =
-  Return <$> (char '^' *> expr <* char ';')
+return' = do
+  char '^'
+  preNoise <- noise
+  e <- expr
+  postNoise <- noise
+  char ';'
+  return $ Return preNoise e postNoise
 
 guard :: Parser Guard
 guard =
   Guard <$> sepBy1 guardExpr (char ',')
+
+{-
+guardExprOrNoise :: Parser (Either GoodNoise GuardExpr)
+guardExprOrNoise =
+  choice [ Left  <$> goodNoise
+         , Right <$> guardExpr
+         ]
+-}
 
 guardExpr :: Parser GuardExpr
 guardExpr =
@@ -126,7 +201,11 @@ guardExpr =
     toNegate '#' = True
   in
     do
+      preANoise <- noise
       a <- expr
+      postANoise <- noise
       n <- toNegate <$> oneOf "=#"
+      preBNoise <- noise
       b <- expr
-      return $ GuardExpr a b n
+      postBNoise <- noise
+      return $ GuardExpr preANoise a postANoise n preBNoise b postBNoise
