@@ -31,6 +31,8 @@ instance ToString Command where
   renderString (Guarded n g n' xs) =
     "[" ++ renderString n ++ renderString g ++ ":"
     ++ renderString n' ++ (concat $ map renderStringE xs) ++ "]"
+  renderString (GuardedGarbage g) =
+    "[" ++ g ++ "]"
   renderString (SimpleCommand e n) =
     renderString e ++ renderString n ++ ";"
   renderString (Assignment name n n' e n'') =

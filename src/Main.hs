@@ -5,6 +5,7 @@ import           Text.Parsec.Prim       ( runParser )
 import           Text.Parsec.String     ( parseFromFile )
 import           Parser
 import           Render
+import           Render.ANSI
 import           System.Environment
 
 main = do
@@ -16,8 +17,7 @@ main = do
         case e of
           Left err ->
             putStrLn $ "Parse error: " ++ show err
-          Right p -> do
-            putStrLn $ {-show p
-            putStrLn $ "text\n:" ++-} renderString p
+          Right p ->
+            printANSI p
     else
       putStrLn "Please specify which file to read."

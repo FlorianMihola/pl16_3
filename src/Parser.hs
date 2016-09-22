@@ -4,6 +4,7 @@ module Parser
 import           Lang
 import           Text.Parsec.Prim       ( Parsec
                                         , try
+                                        , (<?>)
                                         )
 import           Text.Parsec.Char
 import           Text.Parsec.Combinator
@@ -33,10 +34,12 @@ escape = List.foldr (\c s -> if List.elem c escapableChars
 comment :: Parser GoodNoise
 comment =
   Comment <$> (char '%' *> (many $ noneOf "\n\r") <* (many1 $ oneOf "\n\r"))
+  <?> "comment"
 
 whitespace :: Parser GoodNoise
 whitespace =
   Whitespace <$> many1 space
+  <?> "whitespace"
 
 goodNoise :: Parser GoodNoise
 goodNoise =
@@ -52,6 +55,14 @@ expr :: Parser Expr
 expr =
   --Expr <$> ((\e -> [e]) <$> singleExpr) `chainl1` (char '+' *> return (++))
   Expr <$> sepBy1 singleExpr (char '+')
+
+{-
+exprOrGargabe :: Parser (Either Gargabe Expr)
+exprOrGargabe =
+  choice [ Left <$>  garbage (char ';')
+         , Right <$> expr
+         ]
+-}
 
 {-
 singleExprOrNoise :: Parser (Either GoodNoise SingleExpr)
@@ -130,14 +141,30 @@ commandOrNoise =
 
 command :: Parser Command
 command =
+  {-choice [ try -} commandProper <?> "command"
+{-         , commandGarbage
+         ]-}
+
+commandProper :: Parser Command
+commandProper =
   choice [ guarded
-         , assignment
+         , try assignment
          , simpleCommand
          , return'
          ]
 
+commandGarbage :: Parser Command
+commandGarbage =
+  simpleCommandGarbage
+
 guarded :: Parser Command
-guarded = do
+guarded =
+  choice [ try guardedProper
+         , guardedGarbage
+         ]
+
+guardedProper :: Parser Command
+guardedProper = do
   char '['
   preNoise <- noise
   g <- guard
@@ -147,9 +174,30 @@ guarded = do
   char ']'
   return $ Guarded preNoise g postNoise cs
 
+guardedGarbage :: Parser Command
+guardedGarbage =
+  GuardedGarbage <$> (char '[' *> (many $ noneOf "]") <* char ']')
+
 simpleCommand :: Parser Command
 simpleCommand =
+  choice [ try simpleCommandProper
+         , simpleCommandGarbage
+--         , try simpleCommandGarbage'
+         ]
+
+simpleCommandProper :: Parser Command
+simpleCommandProper =
   SimpleCommand <$> expr <*> noise <* char ';'
+
+simpleCommandGarbage :: Parser Command
+simpleCommandGarbage =
+  SimpleCommandGarbage <$> ((many $ noneOf "]};") <* char ';')
+
+{-
+simpleCommandGarbage' :: Parser Command
+simpleCommandGarbage' =
+  SimpleCommandGarbage <$> ((many $ noneOf ";") <* char ';')-}
+
 
 assignment :: Parser Command
 assignment = do
@@ -209,3 +257,8 @@ guardExpr =
       b <- expr
       postBNoise <- noise
       return $ GuardExpr preANoise a postANoise n preBNoise b postBNoise
+
+
+{-garbage :: Parser Garbage
+garbage = string
+-}

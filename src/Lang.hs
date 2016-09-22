@@ -30,7 +30,9 @@ newtype Expr = Expr [SingleExpr]
              deriving (Show)
 
 data Command = Guarded Noise Guard Noise [Either GoodNoise Command]
+             | GuardedGarbage String
              | SimpleCommand Expr Noise
+             | SimpleCommandGarbage String
              | Assignment NameWithLevel Noise Noise Expr Noise
              | Return Noise Expr Noise
              deriving (Show)
@@ -51,3 +53,8 @@ newtype Guard = Guard [GuardExpr]
 -- a # b -> a b True
 data GuardExpr = GuardExpr Noise Expr Noise Bool Noise Expr Noise
                deriving (Show)
+
+{-
+newtype Garbage = Garbage String
+                deriving (Show)
+-}
