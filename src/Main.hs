@@ -6,6 +6,8 @@ import           Text.Parsec.String     ( parseFromFile )
 import           Parser
 import           Render
 import           Render.ANSI
+import           Editable
+import           EditableString
 import           System.Environment
 
 main = do
