@@ -1,7 +1,11 @@
-module EditableString
+module Editable.String
        where
 
 import           Editable
+import           Render
+import           Render.ANSI
+import           System.Console.ANSI
+import           Control.Monad
 
 data EditableString = EditableString String String
 
@@ -33,20 +37,24 @@ instance Editable EditableString where
   insert (EditableString a b) c =
     Just $ EditableString (c : a) b
 
-data ConstrainedEditableString = CEString (Char -> Bool) EditableString
+instance ToString EditableString where
+  renderString = toString
 
-instance Show ConstrainedEditableString where
-  show (CEString _ es) =
-    "!" ++ show es
+instance PrintANSI EditableString where
+  printANSI (EditableString xs ys) = do
+    putStr $ reverse xs
+    putStr ys
 
-instance Editable ConstrainedEditableString where
-  forward (CEString c es) =
-    forward es >>= Just . CEString c
-  backward (CEString c es) =
-    backward es >>= Just . CEString c
-  insert (CEString constraint es) c =
-    if constraint c
-      then
-        insert es c >>= Just . CEString constraint
-      else
-        Nothing
+instance PrintFocusedANSI EditableString where
+  printFocusedANSI sgr (EditableString xs ys) = do
+    setSGR sgr
+    putStr $ reverse xs
+    when
+      (not $ null ys)
+      (do
+          setSGR [SetBlinkSpeed SlowBlink, SetSwapForegroundBackground True]
+          putStr [head ys]
+          setSGR [SetBlinkSpeed NoBlink, SetSwapForegroundBackground False]
+          putStr $ tail ys
+      )
+    setSGR [Reset]

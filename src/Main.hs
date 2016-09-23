@@ -7,8 +7,12 @@ import           Parser
 import           Render
 import           Render.ANSI
 import           Editable
-import           EditableString
+import           Editable.String
+import           Editable.List
+--import           Editable.Instances
+import           Render.Tagged
 import           System.Environment
+import           Data.Maybe
 
 main = do
   args <- getArgs
@@ -19,7 +23,16 @@ main = do
         case e of
           Left err ->
             putStrLn $ "Parse error: " ++ show err
-          Right p ->
-            printANSI p
+          Right p -> do
+            let tagged = toTagged p
+            --print p
+            let tagged' = fromJust $ (Just $ TaggedList $ fromList $ focusFirst tagged)
+                          >>= forward >>= forward >>= forward >>= forward
+                          >>= forward >>= forward >>= forward >>= forward
+                          >>= forward >>= forward >>= forward >>= forward
+                          >>= forward >>= forward >>= forward
+                          >>= backward >>= backward >>= backward
+            print tagged'
+            printANSI tagged'
     else
       putStrLn "Please specify which file to read."

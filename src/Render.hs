@@ -1,27 +1,68 @@
 module Render
        where
 
-import           Lang
-import           Parser
-import qualified Data.List as List
+--import           Lang
+--import           Parser
+--import           Editable
+--import           Editable.String
+--import           Editable.String.Constrained hiding ( toString )
+--import qualified Editable.List      as EL
+--import           Editable.Instances
+--import qualified Data.List          as List
 
 class ToString a where
   renderString :: a -> String
 
+renderStringE :: (ToString a, ToString b) => Either a b -> String
 renderStringE (Left x)  = renderString x
 renderStringE (Right x) = renderString x
 
+instance ToString a => ToString [a] where
+  renderString =
+    concat . map renderString
+
+{-
 instance ToString Program where
   renderString (Program n block n') =
     renderString n ++ renderString block ++ renderString n'
 
+{-
+instance ToString EditableProgram where
+  renderString (EditableProgram _ p) =
+    renderString p
+-}
+
 instance ToString Noise where
   renderString (Noise noises) =
-    concat $ map renderString noises
+    renderString noises
+
+instance ToString a => ToString [a] where
+  renderString =
+    concat . map renderString
+
+instance (ToString a, Editable a) => ToString (EL.List a) where
+  renderString =
+    concat . map renderString . EL.toList
+
+{-
+instance ToString GoodNoise where
+  renderString (Whitespace ces) =
+    renderString ces
+  renderString (Comment b ces) =
+    "%" ++ renderString ces ++ "\n"
+-}
 
 instance ToString GoodNoise where
-  renderString (Whitespace s) = s
-  renderString (Comment c)    = "%" ++ c ++ "\n"
+  renderString (Whitespace s) =
+    s
+  renderString (Comment s) =
+    "%" ++ s ++ "\n"
+
+instance ToString ConstrainedEditableString where
+  renderString (CEString _ es) = renderString es
+
+instance ToString EditableString where
+  renderString = toString
 
 instance ToString Block where
   renderString (Block xs) =
@@ -80,3 +121,4 @@ instance ToString NameWithLevel where
 
 instance ToString Name where
   renderString (Name s) = s
+-}

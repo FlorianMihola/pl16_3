@@ -2,6 +2,11 @@ module Parser
        where
 
 import           Lang
+import           Parser.Type
+import           Parser.Char
+import           Editable
+import           Editable.String
+import qualified Editable.List          as EL
 import           Text.Parsec.Prim       ( Parsec
                                         , try
                                         , (<?>)
@@ -11,35 +16,21 @@ import           Text.Parsec.Combinator
 import           Control.Applicative
 import qualified Data.List              as List
 
-type Parser a = Parsec String () a
-
-nameChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9']
-
-escapeChar = '\\' -- not in spec
-
-escapableChars = "\""
-
-escaped :: [Char] -> Parser Char
-escaped escapableChars = do
-  char escapeChar
-  oneOf escapableChars
-
-escape :: String -> String
-escape = List.foldr (\c s -> if List.elem c escapableChars
-                             then escapeChar : c : s
-                             else c : s
-                    )
-         ""
-
 comment :: Parser GoodNoise
 comment =
-  Comment <$> (char '%' *> (many $ noneOf "\n\r") <* (many1 $ oneOf "\n\r"))
-  <?> "comment"
+{-  let
+    c s = Comment True $ CEString (not . flip elem "\"\n\r") $ fromString s
+  in-}
+    Comment <$> (char '%' *> (many $ noneOf "\n\r") <* (oneOf "\n\r"))
+    <?> "comment"
 
 whitespace :: Parser GoodNoise
 whitespace =
-  Whitespace <$> many1 space
-  <?> "whitespace"
+{-  let
+    ws s = Whitespace $ CEString (flip elem " \t\n\r") $ fromString s
+  in-}
+    Whitespace <$> many1 space
+    <?> "whitespace"
 
 goodNoise :: Parser GoodNoise
 goodNoise =
@@ -50,6 +41,7 @@ goodNoise =
 noise :: Parser Noise
 noise =
   Noise <$> many goodNoise
+  --(Noise . EL.fromList) <$> many goodNoise
 
 expr :: Parser Expr
 expr =
@@ -126,12 +118,12 @@ nakedBlock :: Parser Block
 nakedBlock =
   Block <$> many commandOrNoise
 
-program :: Parser Program
+program :: Parser {-Editable-}Program
 program = do
   preNoise <- noise
   b <- block
   postNoise <- noise
-  return $ Program preNoise b postNoise
+  return $ {-EditableProgram PPreNoise $-} Program preNoise b postNoise
 
 commandOrNoise :: Parser (Either GoodNoise Command)
 commandOrNoise =
@@ -149,8 +141,9 @@ commandProper :: Parser Command
 commandProper =
   choice [ guarded
          , try assignment
-         , simpleCommand
+         , simpleCommandProper
          , return'
+         , simpleCommandGarbage
          ]
 
 commandGarbage :: Parser Command
@@ -178,12 +171,14 @@ guardedGarbage :: Parser Command
 guardedGarbage =
   GuardedGarbage <$> (char '[' *> (many $ noneOf "]") <* char ']')
 
+{-
 simpleCommand :: Parser Command
 simpleCommand =
   choice [ try simpleCommandProper
          , simpleCommandGarbage
 --         , try simpleCommandGarbage'
          ]
+-}
 
 simpleCommandProper :: Parser Command
 simpleCommandProper =

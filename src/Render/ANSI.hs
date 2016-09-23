@@ -1,15 +1,27 @@
 module Render.ANSI
        where
 
-import           Lang
-import           Parser
-import qualified Data.List     as List
-import           Control.Monad
+--import           Lang
+--import           Parser
+--import           Render
+--import           Editable
+--import           Editable.String
+--import qualified Editable.List as EL
+--import qualified Data.List     as List
+--import           Control.Monad
 import           System.Console.ANSI
 
 class PrintANSI a where
   printANSI :: a -> IO ()
 
+class PrintFocusedANSI a where
+  printFocusedANSI :: [SGR] -> a -> IO ()
+
+instance PrintANSI a => PrintANSI [a] where
+  printANSI xs =
+    mapM_ printANSI xs
+
+{-
 printANSIE (Left x)  = printANSI x
 printANSIE (Right x) = printANSI x
 
@@ -19,33 +31,67 @@ instance PrintANSI Program where
     printANSI block
     printANSI n'
 
+instance PrintANSI EditableProgram where
+  printANSI (EditableProgram _ p) =
+    printANSI p
+
 instance PrintANSI Noise where
   printANSI (Noise noises) =
-    mapM_ printANSI noises
+    printANSI noises
+
+{-
+instance (PrintANSI a, Editable a) => PrintANSI (EL.List a) where
+  printANSI =
+    mapM_ printANSI . EL.toList
+
+instance PrintANSI GoodNoise where
+  printANSI (Whitespace ces) =
+    putStr $ renderString ces
+  printANSI (Comment b ces) = do
+    setSGR [ SetColor Foreground Dull Yellow
+           , SetItalicized True
+           --, SetConsoleIntensity FaintIntensity
+           ]
+    putStr $ "%" ++ renderString ces ++ "\n"
+    setSGR [Reset]
+-}
 
 instance PrintANSI GoodNoise where
   printANSI (Whitespace s) =
     putStr s
-  printANSI (Comment c) = do
-    setSGR [SetColor Foreground Dull Yellow]
-    putStr $ "%" ++ c ++ "\n"
+  printANSI (Comment b ces) = do
+    setSGR [ SetColor Foreground Dull Yellow
+           , SetItalicized True
+           --, SetConsoleIntensity FaintIntensity
+           ]
+    putStr $ "%" ++ renderString ces ++ "\n"
     setSGR [Reset]
 
 instance PrintANSI Block where
   printANSI (Block xs) = do
+    setSGR [SetColor Foreground Dull Magenta]
     putStr "{"
+    setSGR [Reset]
     mapM_ printANSIE xs
+    setSGR [SetColor Foreground Dull Magenta]
     putStr "}"
+    setSGR [Reset]
 
 instance PrintANSI Command where
   printANSI (Guarded n g n' xs) = do
+    setSGR [SetColor Foreground Dull Cyan]
     putStr "["
+    setSGR [Reset]
     printANSI n
     printANSI g
+    setSGR [SetColor Foreground Dull Cyan]
     putStr ":"
+    setSGR [Reset]
     printANSI n'
     mapM_ printANSIE xs
+    setSGR [SetColor Foreground Dull Cyan]
     putStr "]"
+    setSGR [Reset]
   printANSI (GuardedGarbage g) = do
     putStr "["
     setSGR [SetColor Background Vivid Red]
@@ -63,6 +109,7 @@ instance PrintANSI Command where
     putStr ";"
   printANSI (Assignment name n n' e n'') = do
     printANSI name
+    setSGR [Reset]
     printANSI n
     putStr "="
     printANSI n'
@@ -151,3 +198,29 @@ instance PrintANSI Name where
     setSGR [SetColor Foreground Dull Blue]
     putStr s
     setSGR [Reset]
+-}
+
+{-
+instance PrintANSI EditableString where
+  printANSI (EditableString xs ys) = do
+    putStr $ reverse xs
+    putStr ys
+
+
+class PrintFocusedANSI a where
+  printFocusedANSI :: [SGR] -> a -> IO ()
+
+instance PrintFocusedANSI EditableString where
+  printFocusedANSI sgr (EditableString xs ys) = do
+    setSGR sgr
+    putStr $ reverse xs
+    when
+      (not $ null ys)
+      (do
+          setSGR [SetBlinkSpeed SlowBlink]
+          putStr [head ys]
+          setSGR [SetBlinkSpeed NoBlink]
+          putStr $ tail ys
+      )
+    setSGR [Reset]
+-}
