@@ -18,17 +18,11 @@ import qualified Data.List              as List
 
 comment :: Parser GoodNoise
 comment =
-{-  let
-    c s = Comment True $ CEString (not . flip elem "\"\n\r") $ fromString s
-  in-}
     Comment <$> (char '%' *> (many $ noneOf "\n\r") <* (oneOf "\n\r"))
     <?> "comment"
 
 whitespace :: Parser GoodNoise
 whitespace =
-{-  let
-    ws s = Whitespace $ CEString (flip elem " \t\n\r") $ fromString s
-  in-}
     Whitespace <$> many1 space
     <?> "whitespace"
 
@@ -41,11 +35,9 @@ goodNoise =
 noise :: Parser Noise
 noise =
   Noise <$> many goodNoise
-  --(Noise . EL.fromList) <$> many goodNoise
 
 expr :: Parser Expr
 expr =
-  --Expr <$> ((\e -> [e]) <$> singleExpr) `chainl1` (char '+' *> return (++))
   Expr <$> sepBy1 singleExpr (char '+')
 
 {-
@@ -123,7 +115,7 @@ program = do
   preNoise <- noise
   b <- block
   postNoise <- noise
-  return $ {-EditableProgram PPreNoise $-} Program preNoise b postNoise
+  return $ Program preNoise b postNoise
 
 commandOrNoise :: Parser (Either GoodNoise Command)
 commandOrNoise =
@@ -133,9 +125,7 @@ commandOrNoise =
 
 command :: Parser Command
 command =
-  {-choice [ try -} commandProper <?> "command"
-{-         , commandGarbage
-         ]-}
+  commandProper <?> "command"
 
 commandProper :: Parser Command
 commandProper =
@@ -188,12 +178,6 @@ simpleCommandGarbage :: Parser Command
 simpleCommandGarbage =
   SimpleCommandGarbage <$> ((many $ noneOf "]};") <* char ';')
 
-{-
-simpleCommandGarbage' :: Parser Command
-simpleCommandGarbage' =
-  SimpleCommandGarbage <$> ((many $ noneOf ";") <* char ';')-}
-
-
 assignment :: Parser Command
 assignment = do
   n <- nameWithLevel
@@ -229,14 +213,6 @@ guard :: Parser Guard
 guard =
   Guard <$> sepBy1 guardExpr (char ',')
 
-{-
-guardExprOrNoise :: Parser (Either GoodNoise GuardExpr)
-guardExprOrNoise =
-  choice [ Left  <$> goodNoise
-         , Right <$> guardExpr
-         ]
--}
-
 guardExpr :: Parser GuardExpr
 guardExpr =
   let
@@ -252,8 +228,3 @@ guardExpr =
       b <- expr
       postBNoise <- noise
       return $ GuardExpr preANoise a postANoise n preBNoise b postBNoise
-
-
-{-garbage :: Parser Garbage
-garbage = string
--}

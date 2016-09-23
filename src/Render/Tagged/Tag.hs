@@ -18,7 +18,6 @@ data Tag = Whitespace
          | Name
          | Equal
          | NotEqual
---         | Other -- remove some time
          deriving (Show)
 
 tagSGR :: Tag -> [SGR]
@@ -54,5 +53,3 @@ tagSGR Equal =
   [ SetColor Foreground Dull Cyan ]
 tagSGR NotEqual =
   [ SetColor Foreground Dull Cyan ]
-{-tagSGR Other =
-  []-}

@@ -27,11 +27,6 @@ main = do
             let tagged = toTagged p
             --print p
             let tagged' = fromJust $ (Just $ TaggedList $ fromList $ focusFirst tagged)
-                          >>= forward >>= forward >>= forward >>= forward
-                          >>= forward >>= forward >>= forward >>= forward
-                          >>= forward >>= forward >>= forward >>= forward
-                          >>= forward >>= forward >>= forward
-                          >>= backward >>= backward >>= backward
             print tagged'
             printANSI tagged'
     else

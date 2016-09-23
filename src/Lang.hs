@@ -8,18 +8,6 @@ import           Editable.String
 import qualified Render.Tagged.Tag as Tag
 import qualified Data.List         as List
 
---import           Editable.String
---import qualified Editable.List   as EL
-
-{-
-data GoodNoise = Whitespace ConstrainedEditableString
-               | Comment Bool ConstrainedEditableString
-               deriving (Show)
-
-newtype Noise = Noise (EL.List GoodNoise)
-              deriving (Show)
--}
-
 data GoodNoise = Whitespace String
                | Comment String
                deriving (Show)
@@ -74,25 +62,6 @@ newtype Guard = Guard [GuardExpr]
 data GuardExpr = GuardExpr Noise Expr Noise Bool Noise Expr Noise
                deriving (Show)
 
-{-
-newtype Garbage = Garbage String
-                deriving (Show)
--}
-{-
-data ProgramFocus = PPreNoise
-                  | PBlock
-                  | PPostNoise
-                  deriving ( Show
-                           , Enum
-                           )
-
-data EditableProgram = EditableProgram ProgramFocus Program
-                     deriving (Show)
-
---make = EditableProgram PPreNoise
--}
-
-
 instance ToString Program where
   renderString (Program n block n') =
     renderString n ++ renderString block ++ renderString n'
@@ -100,14 +69,6 @@ instance ToString Program where
 instance ToString Noise where
   renderString (Noise noises) =
     renderString noises
-
-{-
-instance ToString GoodNoise where
-  renderString (Whitespace ces) =
-    renderString ces
-  renderString (Comment b ces) =
-    "%" ++ renderString ces ++ "\n"
--}
 
 instance ToString GoodNoise where
   renderString (Whitespace s) =

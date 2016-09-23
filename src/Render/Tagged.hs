@@ -4,7 +4,6 @@ module Render.Tagged
        where
 
 import           PreludePlus
---import           Lang
 import           Render
 import           Render.ANSI
 import qualified Render.Tagged.Tag   as Tag
@@ -110,9 +109,3 @@ blurFirst [] =
   []
 blurFirst (Tagged t True es : ts) =
   (Tagged t False es : ts)
-
-{-
-instance ToTagged ConstrainedEditableString where
-  toTagged (CEString True es) =
-    (
--}
