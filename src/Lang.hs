@@ -9,15 +9,15 @@ import qualified Render.Tagged.Tag as Tag
 import qualified Data.List         as List
 
 data GoodNoise = Whitespace String
-               | Comment String
+               | Comment String Bool
                deriving (Show)
 
 newtype Noise = Noise [GoodNoise]
               deriving (Show)
 
-
-newtype Name = Name String
-             deriving (Show)
+data Name = Name String
+          | NameGarbage String Noise String
+          deriving (Show)
 
 data NameWithLevel = NameWithLevel Name Noise Int
                    deriving (Show)
@@ -31,7 +31,7 @@ data ExprBase = StringLiteral String
 data SingleExpr = SingleExpr Noise ExprBase [Either GoodNoise Selector]
                 deriving (Show)
 
-data Selector = Selector Noise String
+data Selector = Selector Noise Name
               deriving (Show)
 
 newtype Expr = Expr [SingleExpr]
@@ -76,8 +76,8 @@ instance ToString Noise where
 instance ToString GoodNoise where
   renderString (Whitespace s) =
     s
-  renderString (Comment s) =
-    "%" ++ s ++ "\n"
+  renderString (Comment s newline) =
+    "%" ++ s ++ (if newline then "\n" else "")
 
 instance ToString Block where
   renderString (Block xs) =
@@ -127,7 +127,7 @@ instance ToString ExprBase where
 
 instance ToString Selector where
   renderString (Selector n s) =
-    "." ++ renderString n ++ s
+    "." ++ renderString n ++ renderString s
 
 instance ToString NameWithLevel where
   renderString (NameWithLevel name n level) =
@@ -141,8 +141,10 @@ instance ToString Name where
 instance ToTagged GoodNoise where
   toTagged (Whitespace s) =
     [Tagged Tag.Whitespace False $ fromString s]
-  toTagged (Comment s) =
-    [Tagged Tag.Comment False $ fromString $ '%' : s ++ "\n"]
+  toTagged (Comment s newline) =
+    [Tagged Tag.Comment False
+       $ fromString $ '%' : s ++ (if newline then "\n" else "")
+    ]
 
 instance ToTagged Noise where
   toTagged (Noise noises) =
@@ -216,7 +218,7 @@ instance ToTagged Selector where
   toTagged (Selector n s) =
     [Tagged Tag.Selector False $ fromString "."]
     ++ toTagged n
-    ++ [Tagged Tag.Name False $ fromString s]
+    ++ toTagged s
 
 instance ToTagged ExprBase where
   toTagged (StringLiteral s) =
@@ -239,6 +241,8 @@ instance ToTagged Guard where
 instance ToTagged Name where
   toTagged (Name s) =
     [Tagged Tag.Name False $ fromString s]
+  toTagged name@(NameGarbage s n s') =
+    [Tagged Tag.Garbage False $ fromString $ renderString name]
 
 instance ToTagged GuardExpr where
   toTagged (GuardExpr an a an' n bn b bn') =

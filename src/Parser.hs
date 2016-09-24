@@ -17,9 +17,20 @@ import           Control.Applicative
 import qualified Data.List              as List
 
 comment :: Parser GoodNoise
-comment =
-    Comment <$> (char '%' *> (many $ noneOf "\n\r") <* (oneOf "\n\r"))
-    <?> "comment"
+comment = do
+  char '%'
+  c <- many $ noneOf "\n\r"
+  newline <- choice [ (const True) <$> (oneOf "\n\r")
+                    , (const False) <$> lookAhead eof
+                    ]
+  return $ Comment c newline
+  {-
+    Comment <$> (char '%' *> (many $ noneOf "\n\r")
+                 <$> choice [ (\_ -> True) <$> (oneOf "\n\r")
+                            , (\_ -> False) <$> lookAhead eof
+                            ]
+                )
+    <?> "comment"-}
 
 whitespace :: Parser GoodNoise
 whitespace =
@@ -126,7 +137,11 @@ programProper = do
 
 programGargabe :: Parser Program
 programGargabe =
-  ProgramGarbage <$> many anyChar
+  ProgramGarbage <$> garbage
+
+garbage :: Parser String
+garbage =
+  many anyChar
 
 commandOrNoise :: Parser (Either GoodNoise Command)
 commandOrNoise =
@@ -205,11 +220,25 @@ nameWithLevel = do
   as <- many $ char '*'
   postAsteriskNoise <- noise
   n <- name
-  return $ NameWithLevel (Name n) postAsteriskNoise (length as)
+  return $ NameWithLevel n postAsteriskNoise (length as)
 
-name :: Parser String
+name :: Parser Name
 name =
+  choice [ try nameProper
+         , nameGarbage
+         ]
+
+nameProper :: Parser Name
+nameProper =
+  Name <$> rawName
+
+rawName :: Parser String
+rawName =
   many1 $ oneOf nameChars
+
+nameGarbage :: Parser Name
+nameGarbage =
+  NameGarbage <$> rawName <*> noise <*> rawName
 
 return' :: Parser Command
 return' = do

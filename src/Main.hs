@@ -41,42 +41,47 @@ main = do
             --hSetBuffering stdin NoBuffering
             --hSetEcho stdin False
 
-            let loop w colorIDs fileName buffer event = do
-                  let continue buffer = getEvent w Nothing >>= loop w colorIDs fileName buffer
-                  let buffer' =
+            let loop w colorIDs fileName buffer saved = do
+                  updateWindow w $ do
+                    clear
+                    setColor' colorIDs Tag.Default
+                    moveCursor 0 0
+                    drawString $ "File: " ++ (if saved then "" else "*") ++ fileName
+                    moveCursor 1 0
+                    renderBuffer colorIDs buffer
+                    moveCursor 20 0
+                    printDebug buffer
+                  render
+                  event <- getEvent w Nothing
+                  let continue buffer saved = loop w colorIDs fileName buffer saved
+                  let (buffer', saved') =
                         case event of
                           Just (EventSpecialKey KeyRightArrow) ->
-                            forward buffer
+                            (forward buffer, saved)
                           Just (EventSpecialKey KeyLeftArrow) ->
-                            backward buffer
+                            (backward buffer, saved)
                           Just (EventSpecialKey KeyDownArrow) ->
-                            down buffer
+                            (down buffer, saved)
                           Just (EventSpecialKey KeyUpArrow) ->
-                            up buffer
+                            (up buffer, saved)
                           Just (EventSpecialKey KeyDeleteCharacter) ->
-                            delete buffer
+                            (delete buffer, False)
                           Just (EventSpecialKey KeyBackspace) ->
-                            backspace buffer
+                            (backspace buffer, False)
                           Just (EventCharacter '\ETB') ->
-                            buffer
+                            (buffer, saved)
                           Just (EventCharacter c) ->
-                            insert buffer c
+                            (insert buffer c, False)
                           _ ->
-                            buffer
-                  case event of
-                    Just (EventCharacter '\ETB') ->
-                      liftIO $ writeFile fileName $ renderString buffer
-                    _ ->
-                      return ()
-                  updateWindow w $ do
-                    moveCursor 0 0
-                    drawString $ show event
-                    moveCursor 1 0
-                    renderBuffer colorIDs buffer'
-                    moveCursor 20 0
-                    printDebug buffer'
-                  render
-                  continue buffer'
+                            (buffer, saved)
+                  saved'' <- case event of
+                               Just (EventCharacter '\ETB') -> do
+                                 liftIO $ writeFile fileName $ renderString buffer
+                                 return True
+                               _ ->
+                                 return saved'
+
+                  continue buffer' saved''
 
             runCurses $ do
               w <- defaultWindow
@@ -86,11 +91,7 @@ main = do
                                        id <- newColorID fg bg i
                                        return (t, id)
                                    ) tagCursesColors
-              updateWindow w $ do
-                moveCursor 0 0
-                renderBuffer colorIDs tagged'
-              render
-              getEvent w Nothing >>= loop w colorIDs fileName tagged'
+              loop w colorIDs fileName tagged' True
     else
       putStrLn "Please specify which file to read."
 

@@ -187,9 +187,9 @@ instance E.Editable Buffer where
   insert = insertEditable
 
   remove (Buffer l@(List xs ys)) =
-    case head' ys >>= E.remove of
-      Just yh -> Just $ Buffer $ List xs (yh : tail ys)
---      Nothing ->
+    head' ys
+    >>= E.remove
+    >>= \yh -> Just $ Buffer $ List xs (yh : tail ys)
 
 -- if we can't go forward inside (head ys)
 forward' :: Buffer -> Maybe Buffer
