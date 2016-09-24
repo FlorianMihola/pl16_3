@@ -18,6 +18,7 @@ data Tag = Whitespace
          | String
          | Selector
          | Name
+         | NameNotAssigned
          | Equal
          | NotEqual
          | Cursor
@@ -64,25 +65,26 @@ tagSGR NotEqual =
   [ SetColor Foreground Dull Cyan ]
 
 tagCursesColors =
-  [ (Default,         1, ColorDefault, ColorDefault)
-  , (Whitespace,      2, ColorDefault, ColorDefault)
-  , (Garbage,         3, ColorBlack,   ColorRed)
-  , (Cursor,          4, ColorBlack,   ColorWhite)
-  , (Comment,         5, ColorYellow,  ColorDefault)
-  , (Block,           6, ColorMagenta, ColorDefault)
-  , (Garbage,         7, ColorBlack,   ColorRed)
-  , (Guarded,         8, ColorBlue,    ColorDefault)
-  , (GuardedGarbage,  9, ColorRed,     ColorDefault)
-  , (Command,        10, ColorMagenta, ColorDefault)
-  , (Assignment,     11, ColorRed,     ColorDefault)
+  [ (Default,            1, ColorDefault, ColorDefault)
+  , (Whitespace,         2, ColorDefault, ColorDefault)
+  , (Garbage,            3, ColorBlack,   ColorRed)
+  , (Cursor,             4, ColorBlack,   ColorWhite)
+  , (Comment,            5, ColorYellow,  ColorDefault)
+  , (Block,              6, ColorMagenta, ColorDefault)
+  , (Garbage,            7, ColorBlack,   ColorRed)
+  , (Guarded,            8, ColorBlue,    ColorDefault)
+  , (GuardedGarbage,     9, ColorRed,     ColorDefault)
+  , (Command,           10, ColorMagenta, ColorDefault)
+  , (Assignment,        11, ColorRed,     ColorDefault)
   , (AssignmentNotRead, 19, ColorBlack,   ColorMagenta)
-  , (Return,         12, ColorMagenta, ColorDefault)
-  , (Level,          13, ColorMagenta, ColorDefault)
-  , (String,         14, ColorGreen,   ColorDefault)
-  , (Selector,       15, ColorBlue,    ColorDefault)
-  , (Name,           16, ColorBlue,    ColorDefault)
-  , (Equal,          17, ColorYellow,  ColorDefault)
-  , (NotEqual,       18, ColorMagenta, ColorDefault)
-  , (Unparsed,       20, ColorDefault, ColorDefault)
+  , (Return,            12, ColorMagenta, ColorDefault)
+  , (Level,             13, ColorMagenta, ColorDefault)
+  , (String,            14, ColorGreen,   ColorDefault)
+  , (Selector,          15, ColorBlue,    ColorDefault)
+  , (Name,              16, ColorBlue,    ColorDefault)
+  , (Equal,             17, ColorYellow,  ColorDefault)
+  , (NotEqual,          18, ColorMagenta, ColorDefault)
+  , (NameNotAssigned,   21, ColorBlack,   ColorCyan)
+  , (Unparsed,          20, ColorDefault, ColorDefault)
   -- Unknown will never be rendered
   ]

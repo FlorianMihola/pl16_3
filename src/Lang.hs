@@ -306,7 +306,6 @@ instance ReadNames Command where
    []
 {-         Guarded Noise Guard Noise [Either GoodNoise Command]
              | GuardedGarbage String
-             | 
              | SimpleCommandGarbage String
              | Assignment NameWithLevel Noise Noise Expr Noise
              | Return Noise Expr Noise
@@ -333,3 +332,195 @@ instance ReadNames ExprBase where
 
 adaptLevel (NameWithLevel name n l) =
   NameWithLevel name n (l - 1)
+
+class AssignedNames a where
+  assignedNames :: a -> [NameWithLevel]
+
+instance AssignedNames Block where
+  assignedNames (Block xs) =
+    concat $ map (assignedNames . fromRight) $ filter isRight xs
+
+instance AssignedNames Command where
+  assignedNames (Assignment name _ _ e _) =
+    [name]
+  assignedNames _ =
+   []
+
+  {-assignedNames (SimpleCommand e _) =
+    assignedNames e-}
+{-         Guarded Noise Guard Noise [Either GoodNoise Command]
+             | GuardedGarbage String
+             | SimpleCommandGarbage String
+             | Assignment NameWithLevel Noise Noise Expr Noise
+             | Return Noise Expr Noise
+-}
+{-
+instance AssignedNames Expr where
+  assignedNames (Expr xs) =
+    concat $ map assignedNames xs
+
+instance AssignedNames SingleExpr where
+  assignedNames (SingleExpr _ eb _) =
+    assignedNames eb
+
+instance AssignedNames ExprBase where
+  assignedNames (Reference name) =
+    [name]
+  assignedNames (StringLiteral _) =
+    []
+  assignedNames (BlockExpr b) =
+    map adaptLevel $ assignedNames b
+  assignedNames (ChildExpr _ e _) =
+   assignedNames e
+-}
+
+class ToTaggedA a where
+  toTaggedA :: [NameWithLevel] -> a -> [Tagged]
+
+instance ToTaggedA a => ToTaggedA [a] where
+  toTaggedA names =
+    concat . map (toTaggedA names)
+
+instance (ToTaggedA a, ToTaggedA b) => ToTaggedA (Either a b) where
+  toTaggedA names (Left x) =
+    toTaggedA names x
+  toTaggedA names (Right x) =
+    toTaggedA names x
+
+
+instance ToTaggedA GoodNoise where
+  toTaggedA _ = toTagged
+
+instance ToTaggedA Noise where
+  toTaggedA _ = toTagged
+
+instance ToTaggedA Program where
+  toTaggedA _ (Program n b n') =
+    toTagged n
+    ++ toTaggedA (assignedNames b) b
+    ++ toTagged n'
+  toTaggedA _ pg@(ProgramGarbage s) =
+    toTagged pg
+
+instance ToTaggedA Block where
+  toTaggedA names b@(Block xs) =
+    [Tagged Tag.Block False $ fromString "{"]
+    ++ (concat $ map (toTaggedA' names (readNames b)) xs)
+    ++ [Tagged Tag.Block False $ fromString "}"]
+
+toTaggedA' assignedNames readNames x =
+  case x of
+    Left x' ->
+      toTagged x'
+    Right a@(Assignment name n n' e n'') ->
+      (if name `elem'` readNames
+         then
+           toTagged name
+         else
+           [Tagged Tag.AssignmentNotRead False $ fromString $ renderString name]
+      )
+      ++ toTagged n
+      ++ [Tagged Tag.Assignment False $ fromString "="]
+      ++ toTagged n'
+      ++ toTaggedA assignedNames e
+      ++ toTagged n''
+      ++ [Tagged Tag.Command False $ fromString ";"]
+    Right x' ->
+      toTagged x'
+{-
+instance ToTaggedA Command where
+  toTagged (Guarded n g n' xs) =
+    [Tagged Tag.Guarded False $ fromString "["]
+    ++ toTagged n
+    ++ toTagged g
+    ++ [Tagged Tag.Guarded False $ fromString ":"]
+    ++ toTagged n'
+    ++ toTagged xs
+    ++ [Tagged Tag.Guarded False $ fromString "]"]
+  toTagged (GuardedGarbage s) =
+    [ Tagged Tag.GuardedGarbage False $ fromString "["
+    , Tagged Tag.Garbage False $ fromString s
+    , Tagged Tag.GuardedGarbage False $ fromString "]"
+    ]
+  toTagged (SimpleCommand e n) =
+    toTagged e ++ toTagged n
+  toTagged (SimpleCommandGarbage s) =
+    [ Tagged Tag.Garbage False $ fromString s
+    , Tagged Tag.Command False $ fromString ";"
+    ]
+  toTagged (Assignment name n n' e n'') =
+    toTagged name
+    ++ toTagged n
+    ++ [Tagged Tag.Assignment False $ fromString "="]
+    ++ toTagged n'
+    ++ toTagged e
+    ++ toTagged n''
+    ++ [Tagged Tag.Command False $ fromString ";"]
+  toTagged (Return n e n') =
+    [Tagged Tag.Return False $ fromString "^"]
+    ++ toTagged n
+    ++ toTagged e
+    ++ toTagged n'
+-}
+instance ToTaggedA NameWithLevel where
+  toTaggedA names name@(NameWithLevel name' n level) =
+    if name `elem'` names
+      then
+        toTagged name
+      else
+        [Tagged Tag.NameNotAssigned False $ fromString $ renderString name]
+
+
+instance ToTaggedA Expr where
+  toTaggedA names (Expr xs) =
+    toTaggedA names xs
+
+instance ToTaggedA SingleExpr where
+  toTaggedA names (SingleExpr n eb xs) =
+    toTagged n
+    ++ toTaggedA names eb
+    ++ toTaggedA names xs
+
+instance ToTaggedA Selector where
+  toTaggedA _ = toTagged
+
+instance ToTaggedA ExprBase where
+  toTaggedA _ sl@(StringLiteral s) =
+    toTagged sl
+  toTaggedA names (BlockExpr b) =
+    toTaggedA names b
+  toTaggedA names r@(Reference name) =
+    toTaggedA names name
+  toTaggedA names (ChildExpr n e n') =
+    [Tagged Tag.String False $ fromString "("]
+    ++ toTagged n
+    ++ toTaggedA names e
+    ++ toTagged n'
+    ++ [Tagged Tag.String False $ fromString ")"]
+{-
+instance ToTaggedA Guard where
+  toTagged (Guard xs) =
+    toTagged xs
+
+instance ToTaggedA Name where
+  toTagged (Name s) =
+    [Tagged Tag.Name False $ fromString s]
+  toTagged name@(NameGarbage s n s') =
+    [Tagged Tag.Garbage False $ fromString $ renderString name]
+
+instance ToTaggedA GuardExpr where
+  toTagged (GuardExpr an a an' n bn b bn') =
+    toTagged an
+    ++ toTagged a
+    ++ toTagged an
+    ++ [ if n
+           then
+             Tagged Tag.NotEqual False $ fromString "#"
+           else
+             Tagged Tag.Equal False $ fromString "="
+       ]
+    ++ toTagged bn
+    ++ toTagged b
+    ++ toTagged bn'
+
+-}

@@ -8,6 +8,7 @@ import           Parser
 import           Render
 import           Render.Tagged
 import           Render.Tagged.Tag as Tag
+import           Lang
 import qualified Editable          as E
 import           Editable.String
 import           Editable.List     ( List (..)
@@ -254,4 +255,4 @@ parseBuffer s =
     Left err ->
       Buffer $ fromList $ [Tagged Tag.Unparsed True $ fromString s]
     Right buffer ->
-      Buffer $ fromList $ focusFirst $ toTagged buffer
+      Buffer $ fromList $ focusFirst $ toTaggedA [] buffer
