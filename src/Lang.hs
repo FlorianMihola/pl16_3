@@ -49,6 +49,7 @@ newtype Block = Block [Either GoodNoise Command]
               deriving (Show)
 
 data Program = Program Noise Block Noise
+             | ProgramGarbage String
              deriving (Show)
 
 newtype Guard = Guard [GuardExpr]
@@ -65,6 +66,8 @@ data GuardExpr = GuardExpr Noise Expr Noise Bool Noise Expr Noise
 instance ToString Program where
   renderString (Program n block n') =
     renderString n ++ renderString block ++ renderString n'
+  renderString (ProgramGarbage s) =
+    s
 
 instance ToString Noise where
   renderString (Noise noises) =
@@ -150,6 +153,8 @@ instance ToTagged Program where
     toTagged n
     ++ toTagged b
     ++ toTagged n'
+  toTagged (ProgramGarbage s) =
+    [Tagged Tag.Garbage False $ fromString s]
 
 instance ToTagged Block where
   toTagged (Block xs) =

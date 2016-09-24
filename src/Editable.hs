@@ -42,3 +42,15 @@ class Editable a where
         x
       else
         toEnd $ fromJust $ forward x
+
+  offset :: a -> Int
+  offset x =
+    let
+      offset' i x =
+        if atBeginning x
+        then
+          i
+        else
+          offset' (i + 1) $ fromJust $ backward x
+    in
+      offset' 0 x

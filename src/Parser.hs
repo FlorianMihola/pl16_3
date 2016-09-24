@@ -110,12 +110,23 @@ nakedBlock :: Parser Block
 nakedBlock =
   Block <$> many commandOrNoise
 
-program :: Parser {-Editable-}Program
-program = do
+program :: Parser Program
+program =
+  choice [ try programProper
+         , programGargabe
+         ]
+  <* eof
+
+programProper :: Parser Program
+programProper = do
   preNoise <- noise
   b <- block
   postNoise <- noise
   return $ Program preNoise b postNoise
+
+programGargabe :: Parser Program
+programGargabe =
+  ProgramGarbage <$> many anyChar
 
 commandOrNoise :: Parser (Either GoodNoise Command)
 commandOrNoise =

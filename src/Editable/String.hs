@@ -28,14 +28,21 @@ instance Editable EditableString where
         Nothing
       else
         Just $ EditableString (head b : a) (tail b)
+
   backward (EditableString a b) =
     if null a
       then
         Nothing
       else
         Just $ EditableString (tail a) (head a : b)
+
   insert (EditableString a b) c =
     Just $ EditableString (c : a) b
+
+  remove (EditableString "" "") =
+    Nothing
+  remove (EditableString a b) =
+    Just $ EditableString a $ tail b
 
 instance ToString EditableString where
   renderString = toString

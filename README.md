@@ -3,12 +3,17 @@ Programming Languages - Third Assignment
 
 # Setup
 
+We need the following libraries, for Ubuntu and others
+
+    $ sudo apt-get install libncursesw5-dev
+
 I recommend you use a cabal sandbox
 
     $ cabal sandbox init
 
 Next, install dependencies (this might take a while)
 
+    $ cabal install c2hs -- a tool we need
     $ cabal install --only-dependencies
 
 You should now be able to build and run the program

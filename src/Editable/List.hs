@@ -39,6 +39,7 @@ instance Editable a => Editable (List a) where
         Just $ List xs (yh : tail ys)
       Nothing ->
         backward' l
+
   insert _ _ = Nothing
 
 instance (ToString a, Editable a) => ToString (List a) where
