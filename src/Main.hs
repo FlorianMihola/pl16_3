@@ -18,6 +18,7 @@ import           System.Environment
 import           Data.Maybe
 import           Control.Applicative
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           System.IO
 import           Data.Char
 import           UI.NCurses
@@ -28,83 +29,49 @@ main = do
   if length args == 1
     then
       do
-        e <- parseFromFile program (args !! 0)
+        let fileName = (args !! 0)
+        e <- parseFromFile program fileName
         case e of
           Left err ->
             putStrLn $ "Parse error: " ++ show err
           Right p -> do
             let tagged = toTagged p
-            --print p
             let tagged' = fromJust $ (Just $ Buffer $ fromList $ focusFirst tagged)
-{-                          >>= forward >>= forward >>= forward
-                          >>= flip insert 'X'
-                          >>= flip insert 'Y'
-                          >>= flip insert 'Z'
-                          >>= Just . renderString
-                          >>= either
-                              (const Nothing)
-                              (Just . Buffer . fromList . focusFirst . toTagged)
-                              . runParser program () ""
-            print tagged'-}
 
-            hSetBuffering stdin NoBuffering
-            hSetEcho stdin False
+            --hSetBuffering stdin NoBuffering
+            --hSetEcho stdin False
 
-            let loop w colorIDs buffer event = do
-                  let continue buffer = getEvent w Nothing >>= loop w colorIDs buffer
+            let loop w colorIDs fileName buffer event = do
+                  let continue buffer = getEvent w Nothing >>= loop w colorIDs fileName buffer
                   let buffer' =
                         case event of
                           Just (EventSpecialKey KeyRightArrow) ->
                             forward buffer
                           Just (EventSpecialKey KeyLeftArrow) ->
                             backward buffer
+                          Just (EventSpecialKey KeyDownArrow) ->
+                            down buffer
+                          Just (EventSpecialKey KeyUpArrow) ->
+                            up buffer
                           Just (EventSpecialKey KeyDeleteCharacter) ->
                             delete buffer
                           Just (EventSpecialKey KeyBackspace) ->
                             backspace buffer
+                          Just (EventCharacter '\ETB') ->
+                            buffer
                           Just (EventCharacter c) ->
                             insert buffer c
                           _ ->
                             buffer
-                        {-case event of
-                          Just (EventSpecialKey KeyRightArrow) ->
-                            forward buffer
-                          Just (EventSpecialKey KeyLeftArrow) ->
-                            backward buffer
-                          Just (EventSpecialKey KeyDeleteCharacter) ->
-                            remove buffer
-                          Just (EventSpecialKey KeyBackspace) ->
-                            backward buffer
-                            >>= remove
-                          Just (EventCharacter c) ->
-                            let
-                              o = (offset buffer) + 1
-                            in
-                              insert buffer c
-                              >>= Just . renderString
-                              >>= either
-                                  (const Nothing)
-                                  (Just . Buffer . fromList . focusFirst . toTagged)
-                                  . runParser program () ""
-                              >>= (foldl1 (\a b -> \x -> a x >>= b)
-                                   $ take o $ repeat forward
-                                  )
-                          _ ->
-                            Just buffer-}
-                  {-case buffer' of
-                    Just b -> do
-                      updateWindow w $ do
-                        moveCursor 0 0
-                        renderBuffer colorIDs b
-                        moveCursor 20 0
-                        printDebug b
-                      render
-                      continue b
-                    Nothing -> do
-                      continue buffer-}
-
+                  case event of
+                    Just (EventCharacter '\ETB') ->
+                      liftIO $ writeFile fileName $ renderString buffer
+                    _ ->
+                      return ()
                   updateWindow w $ do
                     moveCursor 0 0
+                    drawString $ show event
+                    moveCursor 1 0
                     renderBuffer colorIDs buffer'
                     moveCursor 20 0
                     printDebug buffer'
@@ -123,7 +90,7 @@ main = do
                 moveCursor 0 0
                 renderBuffer colorIDs tagged'
               render
-              getEvent w Nothing >>= loop w colorIDs tagged'
+              getEvent w Nothing >>= loop w colorIDs fileName tagged'
     else
       putStrLn "Please specify which file to read."
 

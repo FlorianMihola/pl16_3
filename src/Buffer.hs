@@ -36,6 +36,7 @@ insert buffer c =
   in
     case E.insert (addEmpty buffer) c
          >>= Just . renderString
+--         >>= error . show
          >>= either
              (\err -> error $ "parser error: " ++ show err) -- (const Nothing)
              (Just . Buffer . fromList . focusFirst . toTagged)
@@ -47,6 +48,94 @@ insert buffer c =
       Nothing      -> buffer -- error "insert buffer"
 
 --         fromJust $ insertEditable buffer c
+
+
+down :: Buffer -> Buffer
+down buffer =
+  let
+    column' = fromLeft buffer
+    nextLine = fst $ forwardUntil (== '\n') $ forward buffer
+    nextLineLen = fromRight $ forward nextLine
+    column = min column' nextLineLen
+  in
+    (if column > 0
+      then
+        foldl1 (.) $ take column $ repeat forward
+      else
+        id
+    )
+    nextLine
+
+up :: Buffer -> Buffer
+up buffer =
+  let
+    column' = fromLeft buffer
+    prevLine = fst $ backwardUntil (== '\n') $ fst $ backwardUntil (/= '\n') buffer
+    prevLineLen = fromLeft $ backward prevLine
+    column = prevLineLen - column' + 1
+  in
+    (if column > 0
+       then
+         foldl1 (.) $ take column $ repeat backward
+       else
+         id
+    )
+    prevLine
+
+
+peek :: Buffer -> Maybe Char
+peek (Buffer (List _ ys)) =
+  head' ys >>= (\(Tagged _ _ (EditableString _ ys')) -> head' ys')
+
+forwardUntil :: (Char -> Bool) -> Buffer -> (Buffer, Int)
+forwardUntil p b =
+  let
+    f i p buffer =
+      if peek buffer == Just '\n'
+        then
+          (buffer, i)
+        else
+          case E.forward buffer of
+            Just buffer' ->
+              f (i + 1) p $ buffer'
+            Nothing ->
+              (buffer, i)
+  in
+    f 0 p b
+
+backwardUntil :: (Char -> Bool) -> Buffer -> (Buffer, Int)
+backwardUntil p b =
+  let
+    f i p buffer =
+      if peek buffer == Just '\n'
+        then
+          (buffer, i)
+        else
+          case E.backward buffer of
+            Just buffer' ->
+              f (i + 1) p $ buffer'
+            Nothing ->
+              (buffer, i)
+  in
+    f 0 p b
+
+fromLeft :: Buffer -> Int
+fromLeft buffer =
+  let
+    (buffer', i) = backwardUntil (== '\n') buffer
+  in
+    if peek buffer' == Just '\n'
+      then i
+      else i + 1
+
+fromRight :: Buffer -> Int
+fromRight buffer =
+  let
+    (buffer', i) = forwardUntil (== '\n') buffer
+  in
+    if peek buffer' == Just '\n'
+      then i
+      else i + 1
 
 addEmpty (Buffer (List xs [])) =
   Buffer $ List xs [Tagged Tag.Unknown True $ fromString ""]
