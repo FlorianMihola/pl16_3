@@ -236,7 +236,7 @@ instance ToTagged NameWithLevel where
 
 instance ToTagged Expr where
   toTagged (Expr xs) =
-    toTagged xs
+    concat $ List.intersperse [Tagged Tag.Plus False $ fromString "+"] $ map toTagged xs
 
 instance ToTagged SingleExpr where
   toTagged (SingleExpr n eb xs) =
@@ -427,41 +427,7 @@ toTaggedA' assignedNames readNames x =
       ++ [Tagged Tag.Command False $ fromString ";"]
     Right x' ->
       toTagged x'
-{-
-instance ToTaggedA Command where
-  toTagged (Guarded n g n' xs) =
-    [Tagged Tag.Guarded False $ fromString "["]
-    ++ toTagged n
-    ++ toTagged g
-    ++ [Tagged Tag.Guarded False $ fromString ":"]
-    ++ toTagged n'
-    ++ toTagged xs
-    ++ [Tagged Tag.Guarded False $ fromString "]"]
-  toTagged (GuardedGarbage s) =
-    [ Tagged Tag.GuardedGarbage False $ fromString "["
-    , Tagged Tag.Garbage False $ fromString s
-    , Tagged Tag.GuardedGarbage False $ fromString "]"
-    ]
-  toTagged (SimpleCommand e n) =
-    toTagged e ++ toTagged n
-  toTagged (SimpleCommandGarbage s) =
-    [ Tagged Tag.Garbage False $ fromString s
-    , Tagged Tag.Command False $ fromString ";"
-    ]
-  toTagged (Assignment name n n' e n'') =
-    toTagged name
-    ++ toTagged n
-    ++ [Tagged Tag.Assignment False $ fromString "="]
-    ++ toTagged n'
-    ++ toTagged e
-    ++ toTagged n''
-    ++ [Tagged Tag.Command False $ fromString ";"]
-  toTagged (Return n e n') =
-    [Tagged Tag.Return False $ fromString "^"]
-    ++ toTagged n
-    ++ toTagged e
-    ++ toTagged n'
--}
+
 instance ToTaggedA NameWithLevel where
   toTaggedA names name@(NameWithLevel name' n level) =
     if name `elem'` names
@@ -473,7 +439,8 @@ instance ToTaggedA NameWithLevel where
 
 instance ToTaggedA Expr where
   toTaggedA names (Expr xs) =
-    toTaggedA names xs
+    concat $ List.intersperse [Tagged Tag.Plus False $ fromString "+"]
+           $ map (toTaggedA names) xs
 
 instance ToTaggedA SingleExpr where
   toTaggedA names (SingleExpr n eb xs) =

@@ -22,6 +22,7 @@ data Tag = Whitespace
          | Equal
          | NotEqual
          | Cursor
+         | Plus
          | Default
          | Unknown
          | Unparsed
@@ -85,6 +86,7 @@ tagCursesColors =
   , (Equal,             17, ColorYellow,  ColorDefault)
   , (NotEqual,          18, ColorMagenta, ColorDefault)
   , (NameNotAssigned,   21, ColorBlack,   ColorCyan)
+  , (Plus,              22, ColorGreen,   ColorDefault)
   , (Unparsed,          20, ColorDefault, ColorDefault)
   -- Unknown will never be rendered
   ]

@@ -68,6 +68,7 @@ main = do
               continue buffer' saved''
 
         runCurses $ do
+          setCursorMode CursorInvisible
           w <- defaultWindow
           colorIDs <- Map.fromList
                       <$> mapM (\(t, i, fg, bg) ->
@@ -97,8 +98,8 @@ renderScreen w colorIDs fileName buffer saved = do
     drawString $ "File: " ++ (if saved then "" else "*") ++ fileName
     moveCursor 1 0
     renderBuffer colorIDs buffer'
-    moveCursor 20 0
-    printDebug buffer
+    --moveCursor 20 0
+    --printDebug buffer
   render
 
 renderBuffer colorIDs (Buffer l) = do
