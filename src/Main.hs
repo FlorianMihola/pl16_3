@@ -17,6 +17,7 @@ import           Render.Tagged
 import           Render.Tagged.Tag      as Tag
 import           Buffer               --hiding (forward, backward, insert)
 import           System.Environment
+import           System.Directory
 import           Data.Maybe
 import           Control.Applicative
 import           Control.Monad
@@ -37,35 +38,49 @@ main = do
         let loop w colorIDs fileName buffer saved = do
               renderScreen w colorIDs fileName buffer saved
               event <- getEvent w Nothing
-              let continue buffer saved = loop w colorIDs fileName buffer saved
-              let (buffer', saved') =
+              (buffer, saved) <-
                     case event of
                       Just (EventSpecialKey KeyRightArrow) ->
-                        (forward buffer, saved)
+                        return (forward buffer, saved)
                       Just (EventSpecialKey KeyLeftArrow) ->
-                        (backward buffer, saved)
+                        return (backward buffer, saved)
                       Just (EventSpecialKey KeyDownArrow) ->
-                        (down buffer, saved)
+                        return (down buffer, saved)
                       Just (EventSpecialKey KeyUpArrow) ->
-                        (up buffer, saved)
+                        return (up buffer, saved)
                       Just (EventSpecialKey KeyDeleteCharacter) ->
-                        (delete buffer, False)
+                        return (delete buffer, False)
                       Just (EventSpecialKey KeyBackspace) ->
-                        (backspace buffer, False)
+                        return (backspace buffer, False)
                       Just (EventCharacter '\ETB') ->
-                        (buffer, saved)
+                        return (buffer, saved)
+                      Just (EventCharacter '\CAN') ->
+                        return (buffer, saved)
+                      Just (EventCharacter '\SI') ->
+                        return (buffer, saved)
                       Just (EventCharacter c) ->
-                        (insert buffer c, False)
+                        return (insert buffer c, False)
                       _ ->
-                        (buffer, saved)
-              saved'' <- case event of
-                           Just (EventCharacter '\ETB') -> do
-                             liftIO $ writeFile fileName $ renderString buffer'
-                             return True
-                           _ ->
-                             return saved'
+                        return (buffer, saved)
 
-              continue buffer' saved''
+              saved <- if (event == Just (EventCharacter '\ETB'))
+                         then
+                           do -- Ctrl-W write file
+                             liftIO $ writeFile fileName $ renderString buffer
+                             return True
+                         else
+                           return saved
+
+              (fileName, buffer) <-
+                if (event == Just (EventCharacter '\SI'))
+                  then
+                    openFileDialog colorIDs w (fromString "")
+                    >>= \(name, string) -> return (name, parseBuffer string)
+                  else
+                    return (fileName, buffer)
+
+              when (event /= Just (EventCharacter '\CAN')) -- Ctrl-X quit
+                   (loop w colorIDs fileName buffer saved)
 
         runCurses $ do
           setCursorMode CursorInvisible
@@ -95,11 +110,12 @@ renderScreen w colorIDs fileName buffer saved = do
     clear
     setColor' colorIDs Tag.Default
     moveCursor 0 0
-    drawString $ "File: " ++ (if saved then "" else "*") ++ fileName
+    drawString $ "File: " ++ fileName ++ (if saved then "" else " (modified)") 
     moveCursor 1 0
     renderBuffer colorIDs buffer'
-    --moveCursor 20 0
-    --printDebug buffer
+
+    {-moveCursor 10 0
+    printDebug buffer'-}
   render
 
 renderBuffer colorIDs (Buffer l) = do
@@ -146,8 +162,65 @@ renderFocusedES colorIDs tag (EditableString xs ys) = do
 
 printDebug (Buffer l) = do
   drawString $ show $ findFocused $ toList l
-  --mapM (drawString . show) $ take 5 $ toList l
 
 findFocused [] = Nothing
 findFocused (h@(Tagged _ True _) : ts) = Just h
 findFocused (h@(Tagged _ False _) : ts) = findFocused ts
+
+openFileDialog colorIDs w fileName = do
+  setCursorMode CursorVisible
+  updateWindow w $ do
+    clear
+    setColor' colorIDs Tag.Default
+    moveCursor 0 0
+    drawString $ "Open file: "
+    renderFocusedES colorIDs Tag.Default fileName
+    when (atEnd fileName)
+      (do
+          setColor' colorIDs Tag.Cursor
+          drawString " "
+      )
+  render
+  setCursorMode CursorInvisible
+  event <- getEvent w Nothing
+  case event of
+    Just (EventSpecialKey KeyRightArrow) ->
+      let
+        fileName' = maybe fileName id (E.forward fileName)
+      in
+        openFileDialog colorIDs w fileName'
+    Just (EventSpecialKey KeyLeftArrow) ->
+      let
+        fileName' = maybe fileName id (E.backward fileName)
+      in
+        openFileDialog colorIDs w fileName'
+    Just (EventSpecialKey KeyDownArrow) ->
+      openFileDialog colorIDs w $ toEnd fileName
+    Just (EventSpecialKey KeyUpArrow) ->
+      openFileDialog colorIDs w $ toBeginning fileName
+    Just (EventSpecialKey KeyDeleteCharacter) ->
+      let
+        fileName' = maybe fileName id (E.remove fileName)
+      in
+        openFileDialog colorIDs w fileName'
+    Just (EventSpecialKey KeyBackspace) ->
+      let
+        fileName' = maybe fileName id (E.backward fileName >>= E.remove)
+      in
+        openFileDialog colorIDs w fileName'
+    Just (EventCharacter '\n') -> do
+      let filePath = renderString fileName
+      exists <- liftIO $ doesFileExist filePath
+      if exists
+        then
+          liftIO $ readFile filePath
+          >>= \fileString -> return (filePath, fileString)
+        else
+          return (filePath, "")
+    Just (EventCharacter c) ->
+      let
+        fileName' = maybe fileName id (E.insert fileName c)
+      in
+        openFileDialog colorIDs w fileName'
+    _ ->
+      openFileDialog colorIDs w fileName

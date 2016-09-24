@@ -151,7 +151,9 @@ commandOrNoise =
 
 command :: Parser Command
 command =
-  commandProper <?> "command"
+  choice [ try (commandProper <?> "command")
+         , simpleCommandGarbage
+         ]
 
 commandProper :: Parser Command
 commandProper =
@@ -159,7 +161,7 @@ commandProper =
          , try assignment
          , simpleCommandProper
          , return'
-         , simpleCommandGarbage
+--         , simpleCommandGarbage
          ]
 
 commandGarbage :: Parser Command

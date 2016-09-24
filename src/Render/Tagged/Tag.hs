@@ -82,7 +82,7 @@ tagCursesColors =
   , (Level,             13, ColorMagenta, ColorDefault)
   , (String,            14, ColorGreen,   ColorDefault)
   , (Selector,          15, ColorBlue,    ColorDefault)
-  , (Name,              16, ColorBlue,    ColorDefault)
+  , (Name,              16, ColorCyan,    ColorDefault)
   , (Equal,             17, ColorYellow,  ColorDefault)
   , (NotEqual,          18, ColorMagenta, ColorDefault)
   , (NameNotAssigned,   21, ColorBlack,   ColorCyan)

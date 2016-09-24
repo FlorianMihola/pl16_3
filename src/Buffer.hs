@@ -251,8 +251,12 @@ check xs =
         error $ "check " ++ show focused
 
 parseBuffer s =
-  case runParser program () "" s of
-    Left err ->
-      Buffer $ fromList $ [Tagged Tag.Unparsed True $ fromString s]
-    Right buffer ->
-      Buffer $ fromList $ focusFirst $ toTaggedA [] buffer
+  if null s
+    then
+      Buffer $ fromList $ [Tagged Tag.Unknown True $ fromString ""]
+    else
+      case runParser program () "" s of
+        Left err ->
+          Buffer $ fromList $ [Tagged Tag.Unparsed True $ fromString s]
+        Right buffer ->
+          Buffer $ fromList $ focusFirst $ toTaggedA [] buffer

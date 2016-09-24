@@ -6,7 +6,6 @@ import           Render
 import           Parser.Char
 import           Render.Tagged
 import           Editable.String
---import           ReadNames
 import qualified Render.Tagged.Tag as Tag
 import qualified Data.List         as List
 import           Data.Maybe
@@ -209,7 +208,9 @@ instance ToTagged Command where
     , Tagged Tag.GuardedGarbage False $ fromString "]"
     ]
   toTagged (SimpleCommand e n) =
-    toTagged e ++ toTagged n
+    toTagged e
+    ++ toTagged n
+    ++ [Tagged Tag.Command False $ fromString ";"]
   toTagged (SimpleCommandGarbage s) =
     [ Tagged Tag.Garbage False $ fromString s
     , Tagged Tag.Command False $ fromString ";"
@@ -435,7 +436,6 @@ instance ToTaggedA NameWithLevel where
         toTagged name
       else
         [Tagged Tag.NameNotAssigned False $ fromString $ renderString name]
-
 
 instance ToTaggedA Expr where
   toTaggedA names (Expr xs) =

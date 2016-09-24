@@ -39,7 +39,7 @@ instance Editable EditableString where
   insert (EditableString a b) c =
     Just $ EditableString (c : a) b
 
-  remove (EditableString "" "") =
+  remove (EditableString _ "") =
     Nothing
   remove (EditableString a b) =
     Just $ EditableString a $ tail b
