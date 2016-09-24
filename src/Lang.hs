@@ -1,23 +1,26 @@
 module Lang
        where
 
+import           PreludePlus
 import           Render
 import           Parser.Char
 import           Render.Tagged
 import           Editable.String
+--import           ReadNames
 import qualified Render.Tagged.Tag as Tag
 import qualified Data.List         as List
+import           Data.Maybe
 
 data GoodNoise = Whitespace String
                | Comment String Bool
-               deriving (Show)
+               deriving (Show, Eq)
 
 newtype Noise = Noise [GoodNoise]
-              deriving (Show)
+              deriving (Show, Eq)
 
 data Name = Name String
           | NameGarbage String Noise String
-          deriving (Show)
+          deriving (Show, Eq)
 
 data NameWithLevel = NameWithLevel Name Noise Int
                    deriving (Show)
@@ -159,10 +162,37 @@ instance ToTagged Program where
     [Tagged Tag.Garbage False $ fromString s]
 
 instance ToTagged Block where
-  toTagged (Block xs) =
+  toTagged b@(Block xs) =
     [Tagged Tag.Block False $ fromString "{"]
-    ++ toTagged xs
+    ++ (concat $ map (toTagged' (readNames b)) xs)
     ++ [Tagged Tag.Block False $ fromString "}"]
+
+elem' (NameWithLevel n _ l) names =
+  let
+    p (NameWithLevel n' _ l') =
+      n == n' && l == l'
+  in
+    isJust $ List.find p names
+
+toTagged' names x =
+  case x of
+    Left x' ->
+      toTagged x'
+    Right a@(Assignment name n n' e n'') ->
+      (if name `elem'` names
+         then
+           toTagged name
+         else
+           [Tagged Tag.AssignmentNotRead False $ fromString $ renderString name]
+      )
+      ++ toTagged n
+      ++ [Tagged Tag.Assignment False $ fromString "="]
+      ++ toTagged n'
+      ++ toTagged e
+      ++ toTagged n''
+      ++ [Tagged Tag.Command False $ fromString ";"]
+    Right x' ->
+      toTagged x'
 
 instance ToTagged Command where
   toTagged (Guarded n g n' xs) =
@@ -258,3 +288,48 @@ instance ToTagged GuardExpr where
     ++ toTagged bn
     ++ toTagged b
     ++ toTagged bn'
+
+
+class ReadNames a where
+  readNames :: a -> [NameWithLevel]
+
+instance ReadNames Block where
+  readNames (Block xs) =
+    concat $ map (readNames . fromRight) $ filter isRight xs
+
+instance ReadNames Command where
+  readNames (SimpleCommand e _) =
+    readNames e
+  readNames (Assignment _ _ _ e _) =
+    readNames e
+  readNames _ =
+   []
+{-         Guarded Noise Guard Noise [Either GoodNoise Command]
+             | GuardedGarbage String
+             | 
+             | SimpleCommandGarbage String
+             | Assignment NameWithLevel Noise Noise Expr Noise
+             | Return Noise Expr Noise
+-}
+
+
+instance ReadNames Expr where
+  readNames (Expr xs) =
+    concat $ map readNames xs
+
+instance ReadNames SingleExpr where
+  readNames (SingleExpr _ eb _) =
+    readNames eb
+
+instance ReadNames ExprBase where
+  readNames (Reference name) =
+    [name]
+  readNames (StringLiteral _) =
+    []
+  readNames (BlockExpr b) =
+    map adaptLevel $ readNames b
+  readNames (ChildExpr _ e _) =
+   readNames e
+
+adaptLevel (NameWithLevel name n l) =
+  NameWithLevel name n (l - 1)

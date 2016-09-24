@@ -3,11 +3,13 @@ module Main
 
 import           Text.Parsec.Prim       ( runParser )
 import           Text.Parsec.String     ( parseFromFile )
+import           Lang
 import           Parser
 import           Render
 import           Render.ANSI
 import           Render.Curses
 import           Editable               hiding (forward, backward, insert)
+import qualified Editable               as E
 import           Editable.String
 import           Editable.List
 --import           Editable.Instances
@@ -30,70 +32,74 @@ main = do
     then
       do
         let fileName = (args !! 0)
-        e <- parseFromFile program fileName
-        case e of
-          Left err ->
-            putStrLn $ "Parse error: " ++ show err
-          Right p -> do
-            let tagged = toTagged p
-            let tagged' = fromJust $ (Just $ Buffer $ fromList $ focusFirst tagged)
+        fileString <- readFile fileName
 
-            --hSetBuffering stdin NoBuffering
-            --hSetEcho stdin False
+        let loop w colorIDs fileName buffer saved = do
+              renderScreen w colorIDs fileName buffer saved
+              event <- getEvent w Nothing
+              let continue buffer saved = loop w colorIDs fileName buffer saved
+              let (buffer', saved') =
+                    case event of
+                      Just (EventSpecialKey KeyRightArrow) ->
+                        (forward buffer, saved)
+                      Just (EventSpecialKey KeyLeftArrow) ->
+                        (backward buffer, saved)
+                      Just (EventSpecialKey KeyDownArrow) ->
+                        (down buffer, saved)
+                      Just (EventSpecialKey KeyUpArrow) ->
+                        (up buffer, saved)
+                      Just (EventSpecialKey KeyDeleteCharacter) ->
+                        (delete buffer, False)
+                      Just (EventSpecialKey KeyBackspace) ->
+                        (backspace buffer, False)
+                      Just (EventCharacter '\ETB') ->
+                        (buffer, saved)
+                      Just (EventCharacter c) ->
+                        (insert buffer c, False)
+                      _ ->
+                        (buffer, saved)
+              saved'' <- case event of
+                           Just (EventCharacter '\ETB') -> do
+                             liftIO $ writeFile fileName $ renderString buffer'
+                             return True
+                           _ ->
+                             return saved'
 
-            let loop w colorIDs fileName buffer saved = do
-                  updateWindow w $ do
-                    clear
-                    setColor' colorIDs Tag.Default
-                    moveCursor 0 0
-                    drawString $ "File: " ++ (if saved then "" else "*") ++ fileName
-                    moveCursor 1 0
-                    renderBuffer colorIDs buffer
-                    moveCursor 20 0
-                    printDebug buffer
-                  render
-                  event <- getEvent w Nothing
-                  let continue buffer saved = loop w colorIDs fileName buffer saved
-                  let (buffer', saved') =
-                        case event of
-                          Just (EventSpecialKey KeyRightArrow) ->
-                            (forward buffer, saved)
-                          Just (EventSpecialKey KeyLeftArrow) ->
-                            (backward buffer, saved)
-                          Just (EventSpecialKey KeyDownArrow) ->
-                            (down buffer, saved)
-                          Just (EventSpecialKey KeyUpArrow) ->
-                            (up buffer, saved)
-                          Just (EventSpecialKey KeyDeleteCharacter) ->
-                            (delete buffer, False)
-                          Just (EventSpecialKey KeyBackspace) ->
-                            (backspace buffer, False)
-                          Just (EventCharacter '\ETB') ->
-                            (buffer, saved)
-                          Just (EventCharacter c) ->
-                            (insert buffer c, False)
-                          _ ->
-                            (buffer, saved)
-                  saved'' <- case event of
-                               Just (EventCharacter '\ETB') -> do
-                                 liftIO $ writeFile fileName $ renderString buffer
-                                 return True
-                               _ ->
-                                 return saved'
+              continue buffer' saved''
 
-                  continue buffer' saved''
-
-            runCurses $ do
-              w <- defaultWindow
-              colorIDs <- Map.fromList
-                          <$> mapM (\(t, i, fg, bg) ->
-                                     do
-                                       id <- newColorID fg bg i
-                                       return (t, id)
-                                   ) tagCursesColors
-              loop w colorIDs fileName tagged' True
+        runCurses $ do
+          w <- defaultWindow
+          colorIDs <- Map.fromList
+                      <$> mapM (\(t, i, fg, bg) ->
+                                 do
+                                   id <- newColorID fg bg i
+                                   return (t, id)
+                               ) tagCursesColors
+          let buffer = parseBuffer fileString
+          renderScreen w colorIDs fileName buffer True
+          loop w colorIDs fileName buffer True
     else
       putStrLn "Please specify which file to read."
+
+renderScreen w colorIDs fileName buffer saved = do
+  let o = offset buffer
+  let buffer' = fromJust $ (if o > 0
+                              then
+                                foldl1 (\a b -> \x -> a x >>= b)
+                                $ take o $ repeat E.forward
+                              else
+                                Just
+                           ) $ parseBuffer $ renderString buffer
+  updateWindow w $ do
+    clear
+    setColor' colorIDs Tag.Default
+    moveCursor 0 0
+    drawString $ "File: " ++ (if saved then "" else "*") ++ fileName
+    moveCursor 1 0
+    renderBuffer colorIDs buffer'
+    moveCursor 20 0
+    printDebug buffer
+  render
 
 renderBuffer colorIDs (Buffer l) = do
   mapM_ (renderTagged colorIDs) $ toList l

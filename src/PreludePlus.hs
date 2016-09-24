@@ -16,3 +16,16 @@ tail' xs =
       Nothing
     else
       Just $ tail xs
+
+isRight :: Either a b -> Bool
+isRight (Right _) = True
+isRight (Left _)  = False
+
+isLeft :: Either a b -> Bool
+isLeft = not . isRight
+
+fromRight :: Either a b -> b
+fromRight (Right x) = x
+
+fromLeft :: Either a b -> a
+fromLeft (Left x) = x

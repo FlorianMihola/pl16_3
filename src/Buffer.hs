@@ -1,7 +1,9 @@
 module Buffer
        where
 
-import           PreludePlus
+import           PreludePlus       hiding ( fromLeft
+                                          , fromRight
+                                          )
 import           Parser
 import           Render
 import           Render.Tagged
@@ -37,15 +39,18 @@ insert buffer c =
     case E.insert (addEmpty buffer) c
          >>= Just . renderString
 --         >>= error . show
-         >>= either
-             (\err -> error $ "parser error: " ++ show err) -- (const Nothing)
-             (Just . Buffer . fromList . focusFirst . toTagged)
-             . runParser program () ""
+         >>= Just . parseBuffer
          >>= (foldl1 (\a b -> \x -> a x >>= b)
                      $ take o $ repeat E.forward
              ) of
-      Just buffer' -> buffer'
-      Nothing      -> buffer -- error "insert buffer"
+      Just buffer' ->
+        buffer'
+      Nothing ->
+        {-Buffer
+        $ fromList
+        $ focusFirst
+        [Tagged Tag.Unparsed True fromString $ renderString buffer]-}
+        buffer
 
 --         fromJust $ insertEditable buffer c
 
@@ -189,7 +194,14 @@ instance E.Editable Buffer where
   remove (Buffer l@(List xs ys)) =
     head' ys
     >>= E.remove
-    >>= \yh -> Just $ Buffer $ List xs (yh : tail ys)
+    >>= \yh ->
+         case yh of
+           (Tagged t _ e@(EditableString _ [])) ->
+             Just $ List (Tagged t False e : xs)
+                  $ focusFirst $ tail ys
+           _ ->
+             Just $ List xs $ focusFirst (yh : tail ys)
+         >>= Just . Buffer
 
 -- if we can't go forward inside (head ys)
 forward' :: Buffer -> Maybe Buffer
@@ -236,3 +248,10 @@ check xs =
         xs
       else
         error $ "check " ++ show focused
+
+parseBuffer s =
+  case runParser program () "" s of
+    Left err ->
+      Buffer $ fromList $ [Tagged Tag.Unparsed True $ fromString s]
+    Right buffer ->
+      Buffer $ fromList $ focusFirst $ toTagged buffer

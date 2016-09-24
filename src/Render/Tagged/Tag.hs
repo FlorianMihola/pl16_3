@@ -12,6 +12,7 @@ data Tag = Whitespace
          | GuardedGarbage
          | Command
          | Assignment
+         | AssignmentNotRead
          | Return
          | Level
          | String
@@ -22,6 +23,7 @@ data Tag = Whitespace
          | Cursor
          | Default
          | Unknown
+         | Unparsed
          deriving ( Show
                   , Ord
                   , Eq
@@ -72,13 +74,15 @@ tagCursesColors =
   , (Guarded,         8, ColorBlue,    ColorDefault)
   , (GuardedGarbage,  9, ColorRed,     ColorDefault)
   , (Command,        10, ColorMagenta, ColorDefault)
-  , (Assignment,     11, ColorMagenta, ColorDefault)
+  , (Assignment,     11, ColorRed,     ColorDefault)
+  , (AssignmentNotRead, 19, ColorBlack,   ColorMagenta)
   , (Return,         12, ColorMagenta, ColorDefault)
   , (Level,          13, ColorMagenta, ColorDefault)
-  , (String,         14, ColorMagenta, ColorDefault)
-  , (Selector,       15, ColorMagenta, ColorDefault)
-  , (Name,           16, ColorMagenta, ColorDefault)
+  , (String,         14, ColorGreen,   ColorDefault)
+  , (Selector,       15, ColorBlue,    ColorDefault)
+  , (Name,           16, ColorBlue,    ColorDefault)
   , (Equal,          17, ColorYellow,  ColorDefault)
   , (NotEqual,       18, ColorMagenta, ColorDefault)
+  , (Unparsed,       20, ColorDefault, ColorDefault)
   -- Unknown will never be rendered
   ]
