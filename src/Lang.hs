@@ -228,6 +228,7 @@ instance ToTagged Command where
     ++ toTagged n
     ++ toTagged e
     ++ toTagged n'
+    ++ [Tagged Tag.Command False $ fromString ";"]
 
 instance ToTagged NameWithLevel where
   toTagged (NameWithLevel name n level) =
