@@ -40,6 +40,25 @@ leave the screen.
 
 ## Notes
 
+### Colors
+
+Colors are defined in the `src/Render/Tagged/Tag.hs`. Feel free to change colors
+but the given integer IDs need to stay unique!
+
+Available colors:
+
+    ColorBlack
+    ColorRed
+    ColorGreen
+    ColorYellow
+    ColorBlue
+    ColorMagenta
+    ColorCyan
+    ColorWhite
+    ColorDefault
+
+### EBNF
+
 I rearranged the EBNF to
 
     block             ::=  '{' { command } '}'
@@ -63,5 +82,5 @@ I rearranged the EBNF to
 
     nameWithLevel     ::=  { '*' } name
 
-While (I hope!) this is equivalent to the original EBNF the implementation
-follows this EBNF more closely
+While (I hope!) this is equivalent to the original EBNF, the implementation
+follows this EBNF more closely.
