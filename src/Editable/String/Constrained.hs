@@ -30,6 +30,11 @@ instance Editable ConstrainedEditableString where
         insert es c >>= Just . CEString constraint
       else
         Nothing
+  split (CEString c es) =
+    let
+      (a, b) = split es
+    in
+      (CEString c a, CEString c b)
 
 instance ToString ConstrainedEditableString where
   renderString (CEString _ es) = renderString es

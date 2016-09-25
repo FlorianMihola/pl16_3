@@ -20,6 +20,8 @@ class Editable a where
   remove :: a -> Maybe a
   remove _ = Nothing
 
+  split :: a -> (a, a)
+
   -- for the following the default implementations should do
   atBeginning :: a -> Bool
   atBeginning = isNothing . backward

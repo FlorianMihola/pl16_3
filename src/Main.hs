@@ -106,28 +106,46 @@ renderScreen w colorIDs fileName buffer saved = do
                               else
                                 Just
                            ) $ parseBuffer $ renderString buffer
+  (rows, columns) <- screenSize
   updateWindow w $ do
     clear
     setColor' colorIDs Tag.Default
     moveCursor 0 0
     drawString $ "File: " ++ fileName ++ (if saved then "" else " (modified)") 
     moveCursor 1 0
-    renderBuffer colorIDs buffer'
+    renderBuffer colorIDs
+                 0
+                 (fromInteger $ rows - 2)
+                 (fromInteger columns)
+                 $ addCursor buffer'
 
-    {-moveCursor 10 0
-    printDebug buffer'-}
+    --moveCursor 20 0
+    --printDebug buffer'
   render
 
-renderBuffer colorIDs (Buffer l) = do
-  mapM_ (renderTagged colorIDs) $ toList l
-  case l of
+renderBuffer colorIDs skipLines numLines numColumns buffer =
+  let
+    lines = toLines buffer
+    lines' = concat $ map (splitLine "  " numColumns) lines
+  in
+    mapM_ (renderLine colorIDs)
+          $ take numLines $ drop skipLines lines'
+
+  {-case l of
     (List _ []) -> do
       setColor' colorIDs Tag.Cursor
       drawString " "
     _ ->
-      return ()
+      return ()-}
 
-renderTagged colorIDs (Tagged tag focused es) =
+renderLine colorIDs (Buffer l) =
+  mapM_ (renderTagged colorIDs) $ toList l
+
+renderTagged colorIDs (Tagged tag _ es) = do
+  setColor' colorIDs tag
+  drawString $ renderString es
+
+{-renderTagged colorIDs (Tagged tag focused es) =
   if focused
     then
       renderFocusedES colorIDs tag es
@@ -135,6 +153,7 @@ renderTagged colorIDs (Tagged tag focused es) =
       do
         setColor' colorIDs tag
         drawString $ renderString es
+-}
 
 setColor' colorIDs tag =
   case Map.lookup tag colorIDs of
@@ -161,7 +180,7 @@ renderFocusedES colorIDs tag (EditableString xs ys) = do
     )
 
 printDebug (Buffer l) = do
-  drawString $ show $ findFocused $ toList l
+  drawString $ show $ {-findFocused $-} toList l
 
 findFocused [] = Nothing
 findFocused (h@(Tagged _ True _) : ts) = Just h

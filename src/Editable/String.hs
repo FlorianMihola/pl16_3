@@ -44,6 +44,9 @@ instance Editable EditableString where
   remove (EditableString a b) =
     Just $ EditableString a $ tail b
 
+  split (EditableString a b) =
+    (EditableString [] (reverse a), EditableString [] b)
+
 instance ToString EditableString where
   renderString = toString
 

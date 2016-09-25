@@ -42,6 +42,18 @@ instance Editable a => Editable (List a) where
 
   insert _ _ = Nothing
 
+  split (List xs []) =
+    ( List [] $ reverse $ map toBeginning xs
+    , List [] []
+    )
+  split (List xs ys) =
+    let
+      (ya, yb) = split $ head ys
+    in
+      ( List [] $ reverse $ map toBeginning (ya : xs)
+      , List [] (yb : tail ys)
+      )
+
 instance (ToString a, Editable a) => ToString (List a) where
   renderString =
     concat . map renderString . toList

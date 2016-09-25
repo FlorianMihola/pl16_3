@@ -26,6 +26,7 @@ data Tag = Whitespace
          | Default
          | Unknown
          | Unparsed
+         | Padding
          deriving ( Show
                   , Ord
                   , Eq
@@ -88,5 +89,6 @@ tagCursesColors =
   , (NameNotAssigned,   21, ColorBlack,   ColorCyan)
   , (Plus,              22, ColorGreen,   ColorDefault)
   , (Unparsed,          20, ColorDefault, ColorDefault)
+  , (Padding,           23, ColorDefault, ColorBlack)
   -- Unknown will never be rendered
   ]

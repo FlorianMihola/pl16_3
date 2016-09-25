@@ -13,6 +13,7 @@ import qualified Editable          as E
 import           Editable.String
 import           Editable.List     ( List (..)
                                    , fromList
+                                   , toList'
                                    )
 import           Data.Maybe
 import           Text.Parsec.Prim  ( runParser )
@@ -90,8 +91,15 @@ up buffer =
 
 
 peek :: Buffer -> Maybe Char
-peek (Buffer (List _ ys)) =
-  head' ys >>= (\(Tagged _ _ (EditableString _ ys')) -> head' ys')
+peek (Buffer l@(List _ ys)) =
+  case toList' $ snd $ E.split l of
+    [] ->
+      Nothing
+    xs ->
+      (head' $ filter (not . null) $ map (\(Tagged _ _ es) -> toString es) xs)
+      >>= head'
+
+  --head' ys >>= (\(Tagged _ _ (EditableString _ ys')) -> head' ys')
 
 forwardUntil :: (Char -> Bool) -> Buffer -> (Buffer, Int)
 forwardUntil p b =
@@ -204,6 +212,12 @@ instance E.Editable Buffer where
              Just $ List xs $ focusFirst (yh : tail ys)
          >>= Just . Buffer
 
+  split (Buffer l) =
+    let
+      (a, b) = E.split l
+    in
+      (Buffer a, Buffer b)
+
 -- if we can't go forward inside (head ys)
 forward' :: Buffer -> Maybe Buffer
 forward' (Buffer (List xs ys)) =
@@ -227,11 +241,11 @@ backward' (Buffer (List xs ys)) =
 focusFirst [] =
   []
 focusFirst (h@(Tagged t False (EditableString [] [])): ts) =
-  check $ h : focusFirst ts
+  h : focusFirst ts
 focusFirst (Tagged t False es : ts) =
-  check $ (Tagged t True es : ts)
+  (Tagged t True es : ts)
 focusFirst t =
-  check t
+  t
 
 blurFirst [] =
   []
@@ -240,6 +254,7 @@ blurFirst (Tagged t True es : ts) =
 blurFirst (h@(Tagged t False es) : ts) =
   h : blurFirst ts
 
+{-
 check xs =
   let
     focused = filter (\(Tagged _ f _) -> f) xs
@@ -249,6 +264,7 @@ check xs =
         xs
       else
         error $ "check " ++ show focused
+-}
 
 parseBuffer s =
   if null s
@@ -260,3 +276,94 @@ parseBuffer s =
           Buffer $ fromList $ [Tagged Tag.Unparsed True $ fromString s]
         Right buffer ->
           Buffer $ fromList $ focusFirst $ toTaggedA [] buffer
+
+append (Buffer a) (Buffer b) =
+  let
+    la = toList' a
+    lb = toList' b
+  in
+    Buffer $ fromList $ la ++ lb
+    --error $ (show a) ++ (show $ E.toEnd a) ++ (show $ E.toBeginning a)
+
+addCursor buffer@(Buffer l) =
+  let
+    (a, b) = E.split buffer
+  in
+    case (peek b, E.forward b) of
+      (Just c, Just b') ->
+        append (append
+                  a
+                  (Buffer $ fromList
+                            [Tagged Tag.Cursor False
+                             $ fromString
+                             $ if c == '\n'
+                                 then
+                                   [' ', c]
+                                 else
+                                   [c]
+                            ]
+                  )
+               )
+               $ snd $ E.split b'
+      (Just c, Nothing) ->
+        error $ "Just " ++ show c ++ " Nothing @ addCursor"
+      (Nothing, Just b') ->
+        error $ "Nothing Just " ++ show b' ++ " @ addCursor"
+      _ ->
+        append
+          a
+          (Buffer $ fromList
+                    [Tagged Tag.Cursor False $ fromString " "]
+          )
+
+toLines buffer =
+  let
+    (a, b) = E.split $ forward $ fst $ forwardUntil (== '\n') $ E.toBeginning buffer
+  in
+    case E.forward b of
+      Just b' ->
+        a : toLines b
+      Nothing ->
+        [a, b]
+
+bufferLength =
+  length . renderString
+
+splitLine pre n buffer =
+  if bufferLength buffer <= n
+    then
+      [buffer]
+    else
+      let
+        (a, b) = E.split $ nTimes (n - 1) forward $ E.toBeginning buffer
+      in
+        (append a $ Buffer
+                  $ fromList [Tagged Tag.Whitespace False $ fromString "\n"]
+        )
+        :
+        (splitLine pre n
+         $ append (Buffer
+                   $ fromList [Tagged Tag.Padding False $ fromString pre]
+                  )
+         b
+        )
+
+nTimes n f =
+  (foldl1 (.) $ take n $ repeat f)
+
+{-
+dropChars 0 buffer =
+  buffer
+dropChars n buffer =
+  case peek buffer of
+    Just _ ->
+      dropChars (n - 1) $ delete buffer
+    Nothing ->
+      buffer
+
+takeChars 0 buffer =
+  Buffer $ fromList []
+takeChars n buffer =
+  fst $ E.split $ (nTimes n forward) buffer
+-}
+
