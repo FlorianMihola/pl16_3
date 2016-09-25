@@ -21,6 +21,25 @@ You should now be able to build and run the program
     $ cabal build
     $ cabal run
 
+## Using the editor
+
+Call with a file argument to open
+
+    $ cabal run program.txt
+
+or without:
+
+    $ cabal run # you will be presented a very crude open file dialog
+
+You can open files with Ctrl-o, save using Ctrl-w (w for "write", s for "save"
+is already used for another function in most shells) or close the editor
+using Ctrl-x (eXit, q was already taken).
+
+Lines are wrapped and scrolling should happen once the cursor is about to
+leave the screen.
+
+## Notes
+
 I rearranged the EBNF to
 
     block             ::=  '{' { command } '}'
@@ -43,3 +62,6 @@ I rearranged the EBNF to
                            )
 
     nameWithLevel     ::=  { '*' } name
+
+While (I hope!) this is equivalent to the original EBNF the implementation
+follows this EBNF more closely
