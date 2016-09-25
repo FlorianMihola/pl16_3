@@ -29,73 +29,80 @@ import qualified Data.Map.Strict        as Map
 
 main = do
   args <- getArgs
-  if length args == 1
+
+  let loop w colorIDs fileName buffer saved skipLines = do
+        skipLines <- renderScreen w colorIDs fileName buffer saved skipLines
+        event <- getEvent w Nothing
+        (buffer, saved) <-
+            case event of
+             Just (EventSpecialKey KeyRightArrow) ->
+               return (forward buffer, saved)
+             Just (EventSpecialKey KeyLeftArrow) ->
+               return (backward buffer, saved)
+             Just (EventSpecialKey KeyDownArrow) ->
+               return (down buffer, saved)
+             Just (EventSpecialKey KeyUpArrow) ->
+               return (up buffer, saved)
+             Just (EventSpecialKey KeyDeleteCharacter) ->
+               return (delete buffer, False)
+             Just (EventSpecialKey KeyBackspace) ->
+               return (backspace buffer, False)
+             Just (EventCharacter '\ETB') ->
+               return (buffer, saved)
+             Just (EventCharacter '\CAN') ->
+               return (buffer, saved)
+             Just (EventCharacter '\SI') ->
+               return (buffer, saved)
+             Just (EventCharacter c) ->
+               return (insert buffer c, False)
+             _ ->
+              return (buffer, saved)
+
+        saved <- if (event == Just (EventCharacter '\ETB'))
+                   then
+                     do -- Ctrl-W write file
+                       liftIO $ writeFile fileName $ renderString buffer
+                       return True
+                   else
+                     return saved
+
+        (fileName, buffer) <-
+            if (event == Just (EventCharacter '\SI'))
+            then
+              openFileDialog colorIDs w (fromString "")
+              >>= \(name, string) -> return (name, parseBuffer string)
+            else
+              return (fileName, buffer)
+
+        when (event /= Just (EventCharacter '\CAN')) -- Ctrl-X quit
+            (loop w colorIDs fileName buffer saved skipLines)
+
+  let start mFileName = runCurses $ do
+        setCursorMode CursorInvisible
+        w <- defaultWindow
+        colorIDs <- Map.fromList
+                    <$> mapM (\(t, i, fg, bg) ->
+                               do
+                                 id <- newColorID fg bg i
+                                 return (t, id)
+                             ) tagCursesColors
+        (fileName, fileString) <- case mFileName of
+          Just fileName ->
+            do
+              fileString <- liftIO $ readFile fileName
+              return (fileName, fileString)
+          Nothing ->
+            openFileDialog colorIDs w (fromString "")
+
+        let buffer = parseBuffer fileString
+        skipLines <- renderScreen w colorIDs fileName buffer True 0
+        loop w colorIDs fileName buffer True skipLines
+
+  if (length args > 0)
     then
-      do
-        let fileName = (args !! 0)
-        fileString <- readFile fileName
-
-        let loop w colorIDs fileName buffer saved skipLines = do
-              skipLines <- renderScreen w colorIDs fileName buffer saved skipLines
-              event <- getEvent w Nothing
-              (buffer, saved) <-
-                    case event of
-                      Just (EventSpecialKey KeyRightArrow) ->
-                        return (forward buffer, saved)
-                      Just (EventSpecialKey KeyLeftArrow) ->
-                        return (backward buffer, saved)
-                      Just (EventSpecialKey KeyDownArrow) ->
-                        return (down buffer, saved)
-                      Just (EventSpecialKey KeyUpArrow) ->
-                        return (up buffer, saved)
-                      Just (EventSpecialKey KeyDeleteCharacter) ->
-                        return (delete buffer, False)
-                      Just (EventSpecialKey KeyBackspace) ->
-                        return (backspace buffer, False)
-                      Just (EventCharacter '\ETB') ->
-                        return (buffer, saved)
-                      Just (EventCharacter '\CAN') ->
-                        return (buffer, saved)
-                      Just (EventCharacter '\SI') ->
-                        return (buffer, saved)
-                      Just (EventCharacter c) ->
-                        return (insert buffer c, False)
-                      _ ->
-                        return (buffer, saved)
-
-              saved <- if (event == Just (EventCharacter '\ETB'))
-                         then
-                           do -- Ctrl-W write file
-                             liftIO $ writeFile fileName $ renderString buffer
-                             return True
-                         else
-                           return saved
-
-              (fileName, buffer) <-
-                if (event == Just (EventCharacter '\SI'))
-                  then
-                    openFileDialog colorIDs w (fromString "")
-                    >>= \(name, string) -> return (name, parseBuffer string)
-                  else
-                    return (fileName, buffer)
-
-              when (event /= Just (EventCharacter '\CAN')) -- Ctrl-X quit
-                   (loop w colorIDs fileName buffer saved skipLines)
-
-        runCurses $ do
-          setCursorMode CursorInvisible
-          w <- defaultWindow
-          colorIDs <- Map.fromList
-                      <$> mapM (\(t, i, fg, bg) ->
-                                 do
-                                   id <- newColorID fg bg i
-                                   return (t, id)
-                               ) tagCursesColors
-          let buffer = parseBuffer fileString
-          skipLines <- renderScreen w colorIDs fileName buffer True 0
-          loop w colorIDs fileName buffer True skipLines
+      start $ Just (args !! 0)
     else
-      putStrLn "Please specify which file to read."
+      start Nothing
 
 renderScreen w colorIDs fileName buffer saved skipLines = do
   let o = offset buffer
