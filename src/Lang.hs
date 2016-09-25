@@ -304,6 +304,8 @@ instance ReadNames Command where
     readNames e
   readNames (Assignment _ _ _ e _) =
     readNames e
+  readNames (Guarded _ g _ xs) =
+    readNames g ++ (concat $ map (readNames . fromRight) $ filter isRight xs)
   readNames _ =
    []
 
@@ -324,6 +326,14 @@ instance ReadNames ExprBase where
     map adaptLevel $ readNames b
   readNames (ChildExpr _ e _) =
    readNames e
+
+instance ReadNames Guard where
+  readNames (Guard xs) =
+    concat $ map readNames xs
+
+instance ReadNames GuardExpr where
+  readNames (GuardExpr _ e _ _ _ e' _) =
+    readNames e ++ readNames e'
 
 adaptLevel (NameWithLevel name n l) =
   NameWithLevel name n (l - 1)
