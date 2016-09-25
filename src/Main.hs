@@ -13,7 +13,6 @@ import           Editable               hiding (forward, backward, insert)
 import qualified Editable               as E
 import           Editable.String
 import           Editable.List
---import           Editable.Instances
 import           Render.Tagged
 import           Render.Tagged.Tag      as Tag
 import           Buffer               --hiding (forward, backward, insert)
@@ -126,14 +125,6 @@ renderScreen w colorIDs fileName buffer saved skipLines = do
     drawString $ "File: " ++ fileName ++ (if saved then "" else " (modified)")
     moveCursor 1 0
     mapM_ (renderLine colorIDs) linesD
-    {-renderBuffer colorIDs
-                 0
-                 (fromInteger $ rows - 2)
-                 (fromInteger columns)
-                 $ addCursor buffer'-}
-
-    --moveCursor 20 0
-    --printDebug buffer'
   render
   return (skipLines + skipLinesDelta)
 
@@ -164,41 +155,12 @@ scrollToCursor numLines l =
           (Nothing, Nothing) -> error "There has to be a cursor"
           (Just _, Just _) -> error "There can not be two cursors"
 
-{-cursorLine lines =
-  cursorLine' 0 lines-}
-
-{-
-renderBuffer colorIDs skipLines numLines numColumns buffer =
-  let
-    lines = toLines buffer
-    lines' = concat $ map (splitLine "  " numColumns) lines
-  in
-    mapM_ (renderLine colorIDs)
-          $ take numLines $ drop skipLines lines'
--}
-  {-case l of
-    (List _ []) -> do
-      setColor' colorIDs Tag.Cursor
-      drawString " "
-    _ ->
-      return ()-}
-
 renderLine colorIDs (Buffer l) =
   mapM_ (renderTagged colorIDs) $ toList l
 
 renderTagged colorIDs (Tagged tag _ es) = do
   setColor' colorIDs tag
   drawString $ renderString es
-
-{-renderTagged colorIDs (Tagged tag focused es) =
-  if focused
-    then
-      renderFocusedES colorIDs tag es
-    else
-      do
-        setColor' colorIDs tag
-        drawString $ renderString es
--}
 
 setColor' colorIDs tag =
   case Map.lookup tag colorIDs of

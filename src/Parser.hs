@@ -24,13 +24,6 @@ comment = do
                     , (const False) <$> lookAhead eof
                     ]
   return $ Comment c newline
-  {-
-    Comment <$> (char '%' *> (many $ noneOf "\n\r")
-                 <$> choice [ (\_ -> True) <$> (oneOf "\n\r")
-                            , (\_ -> False) <$> lookAhead eof
-                            ]
-                )
-    <?> "comment"-}
 
 whitespace :: Parser GoodNoise
 whitespace =
@@ -50,22 +43,6 @@ noise =
 expr :: Parser Expr
 expr =
   Expr <$> sepBy1 singleExpr (char '+')
-
-{-
-exprOrGargabe :: Parser (Either Gargabe Expr)
-exprOrGargabe =
-  choice [ Left <$>  garbage (char ';')
-         , Right <$> expr
-         ]
--}
-
-{-
-singleExprOrNoise :: Parser (Either GoodNoise SingleExpr)
-singleExprOrNoise =
-  choice [ Left  <$> goodNoise
-         , Right <$> singleExpr
-         ]
--}
 
 singleExpr :: Parser SingleExpr
 singleExpr = do
@@ -188,15 +165,6 @@ guardedProper = do
 guardedGarbage :: Parser Command
 guardedGarbage =
   GuardedGarbage <$> (char '[' *> (many $ noneOf "]") <* char ']')
-
-{-
-simpleCommand :: Parser Command
-simpleCommand =
-  choice [ try simpleCommandProper
-         , simpleCommandGarbage
---         , try simpleCommandGarbage'
-         ]
--}
 
 simpleCommandProper :: Parser Command
 simpleCommandProper =

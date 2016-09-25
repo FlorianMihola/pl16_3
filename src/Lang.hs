@@ -306,13 +306,6 @@ instance ReadNames Command where
     readNames e
   readNames _ =
    []
-{-         Guarded Noise Guard Noise [Either GoodNoise Command]
-             | GuardedGarbage String
-             | SimpleCommandGarbage String
-             | Assignment NameWithLevel Noise Noise Expr Noise
-             | Return Noise Expr Noise
--}
-
 
 instance ReadNames Expr where
   readNames (Expr xs) =
@@ -347,34 +340,6 @@ instance AssignedNames Command where
     [name]
   assignedNames _ =
    []
-
-  {-assignedNames (SimpleCommand e _) =
-    assignedNames e-}
-{-         Guarded Noise Guard Noise [Either GoodNoise Command]
-             | GuardedGarbage String
-             | SimpleCommandGarbage String
-             | Assignment NameWithLevel Noise Noise Expr Noise
-             | Return Noise Expr Noise
--}
-{-
-instance AssignedNames Expr where
-  assignedNames (Expr xs) =
-    concat $ map assignedNames xs
-
-instance AssignedNames SingleExpr where
-  assignedNames (SingleExpr _ eb _) =
-    assignedNames eb
-
-instance AssignedNames ExprBase where
-  assignedNames (Reference name) =
-    [name]
-  assignedNames (StringLiteral _) =
-    []
-  assignedNames (BlockExpr b) =
-    map adaptLevel $ assignedNames b
-  assignedNames (ChildExpr _ e _) =
-   assignedNames e
--}
 
 class ToTaggedA a where
   toTaggedA :: [NameWithLevel] -> a -> [Tagged]
@@ -465,30 +430,3 @@ instance ToTaggedA ExprBase where
     ++ toTaggedA names e
     ++ toTagged n'
     ++ [Tagged Tag.String False $ fromString ")"]
-{-
-instance ToTaggedA Guard where
-  toTagged (Guard xs) =
-    toTagged xs
-
-instance ToTaggedA Name where
-  toTagged (Name s) =
-    [Tagged Tag.Name False $ fromString s]
-  toTagged name@(NameGarbage s n s') =
-    [Tagged Tag.Garbage False $ fromString $ renderString name]
-
-instance ToTaggedA GuardExpr where
-  toTagged (GuardExpr an a an' n bn b bn') =
-    toTagged an
-    ++ toTagged a
-    ++ toTagged an
-    ++ [ if n
-           then
-             Tagged Tag.NotEqual False $ fromString "#"
-           else
-             Tagged Tag.Equal False $ fromString "="
-       ]
-    ++ toTagged bn
-    ++ toTagged b
-    ++ toTagged bn'
-
--}

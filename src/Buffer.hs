@@ -255,18 +255,6 @@ blurFirst (Tagged t True es : ts) =
 blurFirst (h@(Tagged t False es) : ts) =
   h : blurFirst ts
 
-{-
-check xs =
-  let
-    focused = filter (\(Tagged _ f _) -> f) xs
-  in
-    if length focused == 1
-      then
-        xs
-      else
-        error $ "check " ++ show focused
--}
-
 parseBuffer s =
   if null s
     then
@@ -354,20 +342,3 @@ splitLine pre n buffer =
                   )
          b
         )
-
-{-
-dropChars 0 buffer =
-  buffer
-dropChars n buffer =
-  case peek buffer of
-    Just _ ->
-      dropChars (n - 1) $ delete buffer
-    Nothing ->
-      buffer
-
-takeChars 0 buffer =
-  Buffer $ fromList []
-takeChars n buffer =
-  fst $ E.split $ (nTimes n forward) buffer
--}
-

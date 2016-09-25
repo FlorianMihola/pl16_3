@@ -27,17 +27,6 @@ instance ToString Tagged where
   renderString (Tagged _ _ es) =
     renderString es
 
-{-instance PrintCurses Tagged where
-  printCurses (Tagged tag focused es) = do
-    tagColorID tag >>= setColor
-    if focused
-      then
-        printFocusedCurses (tagColorID tag) es
-      else
-        printCurses es
-    setColor defaultColorID
--}
-
 instance Editable Tagged where
   forward (Tagged t f es) =
     forward es >>= Just . Tagged t f
