@@ -14,6 +14,7 @@ import           Editable.String
 import           Editable.List     ( List (..)
                                    , fromList
                                    , toList'
+                                   , toList
                                    )
 import           Data.Maybe
 import           Text.Parsec.Prim  ( runParser )
@@ -316,6 +317,12 @@ addCursor buffer@(Buffer l) =
                     [Tagged Tag.Cursor False $ fromString " "]
           )
 
+hasCursor (Buffer l) =
+  any hasCursor' $ toList l
+  where
+    hasCursor' (Tagged Tag.Cursor _ _) = True
+    hasCursor' _ = False
+
 toLines buffer =
   let
     (a, b) = E.split $ forward $ fst $ forwardUntil (== '\n') $ E.toBeginning buffer
@@ -347,9 +354,6 @@ splitLine pre n buffer =
                   )
          b
         )
-
-nTimes n f =
-  (foldl1 (.) $ take n $ repeat f)
 
 {-
 dropChars 0 buffer =

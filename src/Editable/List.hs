@@ -71,3 +71,23 @@ forward' (List xs ys) =
 backward' :: Editable a => List a -> Maybe (List a)
 backward' (List xs ys) =
   tail' xs >>= \xt -> backward $ List xt (head xs : ys)
+
+
+newtype FlatList a = FlatList (List a)
+
+instance Editable (FlatList a) where
+  forward (FlatList (List xs ys)) =
+    head' ys >>= \yh -> Just $ FlatList $ List (yh : xs) (tail ys)
+
+  backward l@(FlatList (List xs ys)) =
+    head' xs >>= \xh -> Just $ FlatList $ List (tail xs) (xh : ys)
+
+  insert _ _ = Nothing
+
+  split (FlatList (List xs ys)) =
+    ( FlatList $ List [] $ reverse xs
+    , FlatList $ List [] ys
+    )
+
+fromFlatList (FlatList l) =
+  toList l

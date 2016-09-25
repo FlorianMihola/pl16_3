@@ -1,6 +1,7 @@
 module Main
        where
 
+import           PreludePlus
 import           Text.Parsec.Prim       ( runParser )
 import           Text.Parsec.String     ( parseFromFile )
 import           Lang
@@ -35,8 +36,8 @@ main = do
         let fileName = (args !! 0)
         fileString <- readFile fileName
 
-        let loop w colorIDs fileName buffer saved = do
-              renderScreen w colorIDs fileName buffer saved
+        let loop w colorIDs fileName buffer saved skipLines = do
+              skipLines <- renderScreen w colorIDs fileName buffer saved skipLines
               event <- getEvent w Nothing
               (buffer, saved) <-
                     case event of
@@ -80,7 +81,7 @@ main = do
                     return (fileName, buffer)
 
               when (event /= Just (EventCharacter '\CAN')) -- Ctrl-X quit
-                   (loop w colorIDs fileName buffer saved)
+                   (loop w colorIDs fileName buffer saved skipLines)
 
         runCurses $ do
           setCursorMode CursorInvisible
@@ -92,37 +93,81 @@ main = do
                                    return (t, id)
                                ) tagCursesColors
           let buffer = parseBuffer fileString
-          renderScreen w colorIDs fileName buffer True
-          loop w colorIDs fileName buffer True
+          skipLines <- renderScreen w colorIDs fileName buffer True 0
+          loop w colorIDs fileName buffer True skipLines
     else
       putStrLn "Please specify which file to read."
 
-renderScreen w colorIDs fileName buffer saved = do
+renderScreen w colorIDs fileName buffer saved skipLines = do
   let o = offset buffer
   let buffer' = fromJust $ (if o > 0
                               then
-                                foldl1 (\a b -> \x -> a x >>= b)
-                                $ take o $ repeat E.forward
+                                nTimes' o E.forward
                               else
                                 Just
                            ) $ parseBuffer $ renderString buffer
   (rows, columns) <- screenSize
+  let lines = toLines $ addCursor buffer'
+  let linesS = concat $ map (splitLine "> " $ fromInteger columns) lines
+  let (linesBufferD, skipLinesDelta) =
+        scrollToCursor (fromInteger $ rows - 2)
+        $ fromJust
+        $ nTimes' skipLines E.forward
+        $ FlatList $ fromList linesS
+  let linesD = take (fromInteger $ rows - 2)
+               $ fromFlatList
+               $ snd
+               $ split linesBufferD
+
   updateWindow w $ do
     clear
     setColor' colorIDs Tag.Default
     moveCursor 0 0
-    drawString $ "File: " ++ fileName ++ (if saved then "" else " (modified)") 
+    drawString $ "File: " ++ fileName ++ (if saved then "" else " (modified)")
     moveCursor 1 0
-    renderBuffer colorIDs
+    mapM_ (renderLine colorIDs) linesD
+    {-renderBuffer colorIDs
                  0
                  (fromInteger $ rows - 2)
                  (fromInteger columns)
-                 $ addCursor buffer'
+                 $ addCursor buffer'-}
 
     --moveCursor 20 0
     --printDebug buffer'
   render
+  return (skipLines + skipLinesDelta)
 
+scrollToCursor numLines l =
+  let
+    tryDown n l@(FlatList (List xs ys)) =
+      (head' $ drop (numLines - 1) ys)
+      >>= \ly -> if hasCursor ly
+                 then
+                   Just (l, n)
+                 else
+                   E.forward l >>= tryDown (n + 1)
+    tryUp n l@(FlatList (List xs ys)) =
+      (head' $ ys)
+      >>= \hy -> if hasCursor hy
+                 then
+                   Just (l, n)
+                 else
+                   E.backward l >>= tryUp (n - 1)
+  in
+    if any hasCursor $ take numLines $ fromFlatList $ snd $ split l
+      then
+        (l, 0)
+      else
+        case (tryDown 0 l, tryUp 0 l) of
+          (Just l', Nothing) -> l'
+          (Nothing, Just l') -> l'
+          (Nothing, Nothing) -> error "There has to be a cursor"
+          (Just _, Just _) -> error "There can not be two cursors"
+
+{-cursorLine lines =
+  cursorLine' 0 lines-}
+
+{-
 renderBuffer colorIDs skipLines numLines numColumns buffer =
   let
     lines = toLines buffer
@@ -130,7 +175,7 @@ renderBuffer colorIDs skipLines numLines numColumns buffer =
   in
     mapM_ (renderLine colorIDs)
           $ take numLines $ drop skipLines lines'
-
+-}
   {-case l of
     (List _ []) -> do
       setColor' colorIDs Tag.Cursor
