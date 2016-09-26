@@ -263,11 +263,16 @@ instance ToTagged ExprBase where
   toTagged (Reference name) =
     toTagged name
   toTagged (ChildExpr n e n') =
-    [Tagged Tag.String False $ fromString "("]
+    [Tagged Tag.ChildExpr False $ fromString "("]
     ++ toTagged n
     ++ toTagged e
     ++ toTagged n'
-    ++ [Tagged Tag.String False $ fromString ")"]
+    ++ [Tagged Tag.ChildExpr False $ fromString ")"]
+  toTagged (ChildExprGarbage g) =
+    [ Tagged Tag.ChildExpr False $ fromString "("
+    , Tagged Tag.Garbage False $ fromString g
+    , Tagged Tag.ChildExpr False $ fromString ")"
+    ]
 
 instance ToTagged Guard where
   toTagged (Guard xs) =
