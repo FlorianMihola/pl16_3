@@ -16,6 +16,7 @@ data Tag = Whitespace
          | Return
          | Level
          | String
+         | ChildExpr
          | Selector
          | Name
          | NameNotAssigned
@@ -89,6 +90,7 @@ tagCursesColors =
   , (NameNotAssigned,   21, ColorBlack,   ColorCyan)
   , (Plus,              22, ColorGreen,   ColorDefault)
   , (Unparsed,          20, ColorDefault, ColorDefault)
+  , (ChildExpr,         24, ColorGreen,   ColorDefault)
   , (Padding,           23, ColorDefault, ColorBlack)
   -- Unknown will never be rendered
   ]

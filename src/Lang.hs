@@ -28,6 +28,7 @@ data ExprBase = StringLiteral String
               | BlockExpr Block
               | Reference NameWithLevel
               | ChildExpr Noise Expr Noise
+              | ChildExprGarbage String
               deriving (Show)
 
 data SingleExpr = SingleExpr Noise ExprBase [Either GoodNoise Selector]
@@ -126,6 +127,8 @@ instance ToString ExprBase where
     renderString n
   renderString (ChildExpr n e n') =
     "(" ++ renderString n ++ renderString e ++ renderString n' ++ ")"
+  renderString (ChildExprGarbage g) =
+    "(" ++ g ++ ")"
 
 instance ToString Selector where
   renderString (Selector n s) =
@@ -320,12 +323,14 @@ instance ReadNames SingleExpr where
 instance ReadNames ExprBase where
   readNames (Reference name) =
     [name]
-  readNames (StringLiteral _) =
-    []
+  {-readNames (StringLiteral _) =
+    []-}
   readNames (BlockExpr b) =
     map adaptLevel $ readNames b
   readNames (ChildExpr _ e _) =
-   readNames e
+    readNames e
+  readNames _ =
+    []
 
 instance ReadNames Guard where
   readNames (Guard xs) =
@@ -435,8 +440,13 @@ instance ToTaggedA ExprBase where
   toTaggedA names r@(Reference name) =
     toTaggedA names name
   toTaggedA names (ChildExpr n e n') =
-    [Tagged Tag.String False $ fromString "("]
+    [Tagged Tag.ChildExpr False $ fromString "("]
     ++ toTagged n
     ++ toTaggedA names e
     ++ toTagged n'
-    ++ [Tagged Tag.String False $ fromString ")"]
+    ++ [Tagged Tag.ChildExpr False $ fromString ")"]
+  toTaggedA names (ChildExprGarbage g) =
+    [ Tagged Tag.ChildExpr False $ fromString "("
+    , Tagged Tag.Garbage False $ fromString g
+    , Tagged Tag.ChildExpr False $ fromString ")"
+    ]

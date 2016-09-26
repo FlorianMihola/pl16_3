@@ -53,11 +53,24 @@ singleExpr = do
 
 exprBase :: Parser ExprBase
 exprBase =
+  choice [ try exprBaseProper
+         , childExprGarbage
+         ]
+
+exprBaseProper :: Parser ExprBase
+exprBaseProper =
   choice [ stringLiteral
          , BlockExpr <$> block
          , Reference <$> nameWithLevel
          , childExpr
          ]
+
+childExprGarbage :: Parser ExprBase
+childExprGarbage = do
+  char '('
+  g <- many $ noneOf ")"
+  char ')'
+  return $ ChildExprGarbage g
 
 stringLiteral :: Parser ExprBase
 stringLiteral =
