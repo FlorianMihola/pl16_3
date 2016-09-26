@@ -42,8 +42,7 @@ leave the screen.
 
 ### Colors
 
-Colors are defined in the `src/Render/Tagged/Tag.hs`. Feel free to change colors
-but the given integer IDs need to stay unique!
+Colors are defined in the `src/Render/Tagged/Tag.hs`. Feel free to change colors.
 
 Available colors:
 
