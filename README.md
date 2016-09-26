@@ -13,7 +13,9 @@ I recommend you use a cabal sandbox
 
 Next, install dependencies (this might take a while)
 
-    $ cabal install c2hs -- a tool we need
+    $ cabal install happy  # needed for c2hs
+    $ cabal install alex   # needed for c2hs
+    $ cabal install c2hs   # a tool we need
     $ cabal install --only-dependencies
 
 You should now be able to build and run the program
