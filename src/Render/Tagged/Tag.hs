@@ -8,6 +8,7 @@ data Tag = Whitespace
          | Comment
          | Block
          | Garbage
+         | Guard
          | Guarded
          | GuardedGarbage
          | Command
@@ -78,6 +79,7 @@ tagCursesColors' =
   , (Comment,            ColorYellow,  ColorDefault)
   , (Block,              ColorMagenta, ColorDefault)
   , (Garbage,            ColorBlack,   ColorRed)
+  , (Guard,              ColorBlue,    ColorDefault)
   , (Guarded,            ColorBlue,    ColorDefault)
   , (GuardedGarbage,     ColorRed,     ColorDefault)
   , (Command,            ColorMagenta, ColorDefault)
@@ -89,11 +91,10 @@ tagCursesColors' =
   , (Selector,           ColorBlue,    ColorDefault)
   , (Name,               ColorCyan,    ColorDefault)
   , (Equal,              ColorYellow,  ColorDefault)
-  , (NotEqual,           ColorMagenta, ColorDefault)
+  , (NotEqual,           ColorYellow, ColorDefault)
   , (NameNotAssigned,    ColorBlack,   ColorCyan)
   , (Plus,               ColorBlue,    ColorDefault)
   , (Unparsed,           ColorDefault, ColorDefault)
   , (ChildExpr,          ColorRed,     ColorDefault)
   , (Padding,            ColorDefault, ColorBlack)
-  -- Unknown will never be rendered
   ]

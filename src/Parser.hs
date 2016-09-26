@@ -105,7 +105,17 @@ selector = do
 
 block :: Parser Block
 block =
+  choice [ try blockProper
+         , blockGarbage
+         ]
+
+blockProper :: Parser Block
+blockProper =
   between (char '{') (char '}') nakedBlock
+
+blockGarbage :: Parser Block
+blockGarbage =
+  between (char '{') (char '}') $ BlockGarbage <$> complexGarbage "{}"
 
 nakedBlock :: Parser Block
 nakedBlock =
@@ -119,11 +129,8 @@ program =
   <* eof
 
 programProper :: Parser Program
-programProper = do
-  preNoise <- noise
-  b <- block
-  postNoise <- noise
-  return $ Program preNoise b postNoise
+programProper =
+  Program <$> noise <*> block <*> noise
 
 programGargabe :: Parser Program
 programGargabe =
@@ -137,12 +144,21 @@ commandOrNoise :: Parser (Either GoodNoise Command)
 commandOrNoise =
   choice [ Left  <$> goodNoise
          , Right <$> command
+--         , Left <$> noiseGarbage
          ]
+
+noiseGarbage :: Parser GoodNoise
+noiseGarbage =
+  let
+    g s =
+      NoiseGarbage $ s ++ ";"
+  in
+    g <$> (many $ noneOf ";") <* (char ';')
 
 command :: Parser Command
 command =
   choice [ try (commandProper <?> "command")
-         , simpleCommandGarbage
+         , commandGarbage
          ]
 
 commandProper :: Parser Command
@@ -151,12 +167,13 @@ commandProper =
          , try assignment
          , simpleCommandProper
          , return'
---         , simpleCommandGarbage
          ]
 
 commandGarbage :: Parser Command
 commandGarbage =
-  simpleCommandGarbage
+  choice [ assignmentGarbage
+         , simpleCommandGarbage
+         ]
 
 guarded :: Parser Command
 guarded =
@@ -177,7 +194,7 @@ guardedProper = do
 
 guardedGarbage :: Parser Command
 guardedGarbage =
-  GuardedGarbage <$> (char '[' *> (many $ noneOf "]") <* char ']')
+  GuardedGarbage <$> (char '[' *> (complexGarbage "[]") <* char ']')
 
 simpleCommandProper :: Parser Command
 simpleCommandProper =
@@ -185,11 +202,40 @@ simpleCommandProper =
 
 simpleCommandGarbage :: Parser Command
 simpleCommandGarbage =
-  SimpleCommandGarbage <$> ((many $ noneOf "]};") <* char ';')
+  SimpleCommandGarbage <$> (many1 $ noneOf "]};") <* char ';'
+
+complexGarbage :: String -> Parser String
+complexGarbage forbidden =
+  let
+    concatThree a b c =
+      a ++ b ++ c
+    simple =
+      many1 . noneOf
+    blockLike =
+      concatThree <$> string "{" <*> complexGarbage "{}" <*> string "}"
+    guardLike =
+      concatThree <$> string "[" <*> complexGarbage "[]" <*> string "]"
+  in
+   concat <$> (many $ choice [ blockLike
+                             , guardLike
+                             , simple forbidden
+                             ]
+              )
 
 assignment :: Parser Command
 assignment = do
   n <- nameWithLevel
+  postNameNoise <- noise
+  char '='
+  preExprNoise <- noise
+  e <- expr
+  postExprNoise <- noise
+  char ';'
+  return $ Assignment n postNameNoise preExprNoise e postExprNoise
+
+assignmentGarbage :: Parser Command
+assignmentGarbage = do
+  n <- nameWithLevelGarbage
   postNameNoise <- noise
   char '='
   preExprNoise <- noise
@@ -210,6 +256,14 @@ name =
   choice [ try nameProper
          , nameGarbage
          ]
+
+nameWithLevelGarbage :: Parser NameWithLevel
+nameWithLevelGarbage = do
+  as <- many $ char '*'
+  postAsteriskNoise <- noise
+  n <- nameGarbage
+  return $ NameWithLevel n postAsteriskNoise (length as)
+
 
 nameProper :: Parser Name
 nameProper =
@@ -234,7 +288,7 @@ return' = do
 
 guard :: Parser Guard
 guard =
-  Guard <$> sepBy1 guardExpr (char ',')
+  Guard <$> sepBy1 (choice [ try guardExpr, guardExprGarbage ]) (char ',')
 
 guardExpr :: Parser GuardExpr
 guardExpr =
@@ -251,3 +305,7 @@ guardExpr =
       b <- expr
       postBNoise <- noise
       return $ GuardExpr preANoise a postANoise n preBNoise b postBNoise
+
+guardExprGarbage :: Parser GuardExpr
+guardExprGarbage =
+  GuardExprGarbage <$> (many $ noneOf ",")

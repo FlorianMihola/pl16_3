@@ -4,7 +4,7 @@
         ab = {} + ("test " + a + " -le " + b).syscall;
         [  ab = "1" :
             ac = {} + ("test " + a + " -le " + c).syscall;
-	    [ ac = "1" : ^c; ]
+            [ ac = "1" : ^c; ]
             [ ac = "0" : ^a; ]
         ][ ab = "0" :
             ^ { a = *a; b = *c; c = *b; } + *max;

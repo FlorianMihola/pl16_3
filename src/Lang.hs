@@ -12,6 +12,7 @@ import           Data.Maybe
 
 data GoodNoise = Whitespace String
                | Comment String Bool
+               | NoiseGarbage String -- BadNoise disguised as GoodNoise
                deriving (Show, Eq)
 
 newtype Noise = Noise [GoodNoise]
@@ -48,8 +49,9 @@ data Command = Guarded Noise Guard Noise [Either GoodNoise Command]
              | Return Noise Expr Noise
              deriving (Show)
 
-newtype Block = Block [Either GoodNoise Command]
-              deriving (Show)
+data Block = Block [Either GoodNoise Command]
+           | BlockGarbage String
+           deriving (Show)
 
 data Program = Program Noise Block Noise
              | ProgramGarbage String
@@ -64,6 +66,7 @@ newtype Guard = Guard [GuardExpr]
 -- a = b -> a b False
 -- a # b -> a b True
 data GuardExpr = GuardExpr Noise Expr Noise Bool Noise Expr Noise
+               | GuardExprGarbage String
                deriving (Show)
 
 instance ToString Program where
@@ -81,10 +84,14 @@ instance ToString GoodNoise where
     s
   renderString (Comment s newline) =
     "%" ++ s ++ (if newline then "\n" else "")
+  renderString (NoiseGarbage g) =
+    g
 
 instance ToString Block where
   renderString (Block xs) =
     "{" ++ (concat $ map renderStringE xs) ++ "}"
+  renderString (BlockGarbage g) =
+    "{" ++ g ++ "}"
 
 instance ToString Command where
   renderString (Guarded n g n' xs) =
@@ -109,6 +116,8 @@ instance ToString GuardExpr where
     renderString an ++ renderString a ++ renderString an'
     ++ (if neg then "#" else "=")
     ++ renderString bn ++ renderString b ++ renderString bn'
+  renderString (GuardExprGarbage s) =
+    s
 
 instance ToString Expr where
   renderString (Expr xs) =
@@ -140,8 +149,10 @@ instance ToString NameWithLevel where
     ++ renderString n ++ renderString name
 
 instance ToString Name where
-  renderString (Name s) = s
-
+  renderString (Name s) =
+    s
+  renderString (NameGarbage s n s') =
+    s ++ renderString n ++ s'
 
 instance ToTagged GoodNoise where
   toTagged (Whitespace s) =
@@ -150,6 +161,8 @@ instance ToTagged GoodNoise where
     [Tagged Tag.Comment False
        $ fromString $ '%' : s ++ (if newline then "\n" else "")
     ]
+  toTagged (NoiseGarbage g) =
+    [Tagged Tag.Garbage False $ fromString g]
 
 instance ToTagged Noise where
   toTagged (Noise noises) =
@@ -168,6 +181,11 @@ instance ToTagged Block where
     [Tagged Tag.Block False $ fromString "{"]
     ++ (concat $ map (toTagged' (readNames b)) xs)
     ++ [Tagged Tag.Block False $ fromString "}"]
+  toTagged (BlockGarbage g) =
+    [ Tagged Tag.Block False $ fromString "{"
+    , Tagged Tag.Garbage False $ fromString g
+    , Tagged Tag.Block False $ fromString "}"
+    ]
 
 elem' (NameWithLevel n _ l) names =
   let
@@ -276,7 +294,8 @@ instance ToTagged ExprBase where
 
 instance ToTagged Guard where
   toTagged (Guard xs) =
-    toTagged xs
+    concat $ List.intersperse [Tagged Tag.Guard False $ fromString ","]
+           $ map toTagged xs
 
 instance ToTagged Name where
   toTagged (Name s) =
@@ -288,7 +307,7 @@ instance ToTagged GuardExpr where
   toTagged (GuardExpr an a an' n bn b bn') =
     toTagged an
     ++ toTagged a
-    ++ toTagged an
+    ++ toTagged an'
     ++ [ if n
            then
              Tagged Tag.NotEqual False $ fromString "#"
@@ -298,7 +317,8 @@ instance ToTagged GuardExpr where
     ++ toTagged bn
     ++ toTagged b
     ++ toTagged bn'
-
+  toTagged (GuardExprGarbage g) =
+    [Tagged Tag.Garbage False $ fromString g]
 
 class ReadNames a where
   readNames :: a -> [NameWithLevel]
@@ -306,6 +326,8 @@ class ReadNames a where
 instance ReadNames Block where
   readNames (Block xs) =
     concat $ map (readNames . fromRight) $ filter isRight xs
+  readNames (BlockGarbage _) =
+    []
 
 instance ReadNames Command where
   readNames (SimpleCommand e _) =
@@ -344,6 +366,8 @@ instance ReadNames Guard where
 instance ReadNames GuardExpr where
   readNames (GuardExpr _ e _ _ _ e' _) =
     readNames e ++ readNames e'
+  readNames (GuardExprGarbage _) =
+    []
 
 adaptLevel (NameWithLevel name n l) =
   NameWithLevel name n (l - 1)
@@ -354,6 +378,8 @@ class AssignedNames a where
 instance AssignedNames Block where
   assignedNames (Block xs) =
     concat $ map (assignedNames . fromRight) $ filter isRight xs
+  assignedNames (BlockGarbage _) =
+    []
 
 instance AssignedNames Command where
   assignedNames (Assignment name _ _ e _) =
@@ -394,12 +420,17 @@ instance ToTaggedA Block where
     [Tagged Tag.Block False $ fromString "{"]
     ++ (concat $ map (toTaggedA' names (readNames b)) xs)
     ++ [Tagged Tag.Block False $ fromString "}"]
+  toTaggedA names (BlockGarbage g) =
+    [ Tagged Tag.Block False $ fromString "{"
+    , Tagged Tag.Garbage False $ fromString g
+    , Tagged Tag.Block False $ fromString "}"
+    ]
 
 toTaggedA' assignedNames readNames x =
   case x of
     Left x' ->
       toTagged x'
-    Right a@(Assignment name n n' e n'') ->
+    Right a@(Assignment name@(NameWithLevel (Name _) _ _) n n' e n'') ->
       (if name `elem'` readNames
          then
            toTagged name
